@@ -1,0 +1,19 @@
+# deps + build
+node_modules/
+dist/
+.astro/
+.cf-dist/
+
+# env (keep the example)
+.env
+.env.*
+!.env.example
+
+# supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# tooling / scratch
+.playwright-mcp/
+*.log
+.DS_Store

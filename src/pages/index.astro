@@ -1,0 +1,75 @@
+---
+import Base from '../layouts/Base.astro';
+import { GAMES, ARCADE } from '../lib/games';
+const tags = ['all', ...Array.from(new Set(GAMES.flatMap((g) => g.tags))).sort()];
+function statusLabel(s: string) {
+  return s === 'playable' ? '▶ play' : s === 'planned' ? 'planned' : 'someday';
+}
+---
+<Base title="Arcade">
+  <section class="hero">
+    <h1>{ARCADE.name}</h1>
+    <p>{ARCADE.tagline}</p>
+  </section>
+
+  <nav id="filters">
+    {tags.map((t) => <button class="chip" data-tag={t}>{t}</button>)}
+  </nav>
+
+  <div id="grid">
+    {GAMES.map((g) => {
+      const playable = g.status === 'playable' && g.path;
+      const Tag = playable ? 'a' : 'div';
+      return (
+        <Tag class={`card ${playable ? 'playable' : 'locked'}`} data-tags={g.tags.join(' ')} href={playable ? g.path : undefined}>
+          <div class="thumb" style={`background:${g.gradient}`}>
+            <span>{g.emoji}</span>
+            <span class="status">{statusLabel(g.status)}</span>
+          </div>
+          <div class="body">
+            <h3>{g.title}</h3>
+            <p>{g.blurb}</p>
+            <div class="tags">{g.tags.map((t) => <span class="tag">{t}</span>)}</div>
+          </div>
+        </Tag>
+      );
+    })}
+  </div>
+
+  <style>
+    .hero { text-align: center; margin-bottom: 8px; }
+    .hero h1 { margin: 0; font-size: 42px; letter-spacing: 10px; font-weight: 800; background: linear-gradient(90deg, #7aa2ff, #c98bff, #ff9e8b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero p { margin: 10px 0 0; color: #6b7890; font-size: 14px; letter-spacing: 2px; }
+    #filters { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 24px 0 30px; }
+    .chip { border: 1px solid #2a3550; background: #141a28; color: #9fb4d4; padding: 6px 15px; border-radius: 999px; font-size: 13px; cursor: pointer; font-family: inherit; transition: all .15s ease; }
+    .chip:hover { border-color: #3a4a72; color: #cdd6e4; }
+    .chip.active { background: #2a3550; color: #fff; border-color: #3a4a72; }
+    #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 22px; }
+    .card { background: #10141f; border: 1px solid #1d2536; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; color: inherit; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+    .card.playable { cursor: pointer; }
+    .card.playable:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,.5); border-color: #3a4a72; }
+    .card.locked { opacity: .5; }
+    .thumb { aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; font-size: 66px; position: relative; text-shadow: 0 4px 14px rgba(0,0,0,.4); }
+    .thumb .status { position: absolute; top: 10px; right: 10px; font-size: 11px; letter-spacing: 1px; background: rgba(0,0,0,.45); padding: 4px 10px; border-radius: 999px; text-transform: uppercase; }
+    .body { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; gap: 9px; }
+    .body h3 { margin: 0; font-size: 17px; color: #eaf2ff; }
+    .body p { margin: 0; font-size: 13px; color: #8595b0; line-height: 1.45; flex: 1; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag { font-size: 11px; color: #6b7890; background: #161d2c; padding: 3px 8px; border-radius: 6px; }
+  </style>
+
+  <script>
+    const chips = Array.from(document.querySelectorAll('#filters .chip'));
+    const cards = Array.from(document.querySelectorAll('#grid .card')) as HTMLElement[];
+    let active = 'all';
+    function apply() {
+      cards.forEach((c) => {
+        const t = (c.getAttribute('data-tags') || '').split(' ');
+        c.style.display = active === 'all' || t.includes(active) ? '' : 'none';
+      });
+      chips.forEach((ch) => ch.classList.toggle('active', ch.getAttribute('data-tag') === active));
+    }
+    chips.forEach((ch) => ch.addEventListener('click', () => { active = ch.getAttribute('data-tag') || 'all'; apply(); }));
+    apply();
+  </script>
+</Base>

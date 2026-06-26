@@ -1,0 +1,53 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Sign in — Arcade">
+  <div class="auth">
+    <h2>Sign in / Sign up</h2>
+    <p class="sub">An account saves your scores and puts you on the leaderboards.</p>
+    <form id="f">
+      <input id="email" type="email" placeholder="email" autocomplete="email" required />
+      <input id="password" type="password" placeholder="password (min 6 chars)" minlength="6" autocomplete="current-password" required />
+      <div class="row">
+        <button id="signin" type="submit">Sign in</button>
+        <button id="signup" type="button" class="ghost">Create account</button>
+      </div>
+    </form>
+    <p id="msg"></p>
+  </div>
+
+  <style>
+    .auth { max-width: 380px; margin: 24px auto; }
+    .sub { color: #8595b0; font-size: 14px; margin-top: -4px; }
+    form { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+    input { font: inherit; padding: 11px 13px; border-radius: 10px; border: 1px solid #2a3550; background: #10141f; color: #eaf2ff; }
+    input:focus { outline: none; border-color: #5a7bff; }
+    .row { display: flex; gap: 10px; }
+    button { font: inherit; flex: 1; padding: 11px; border-radius: 10px; border: 1px solid #3a4a72; background: #2a3550; color: #fff; cursor: pointer; }
+    button.ghost { background: #141a28; color: #9fb4d4; }
+    button:hover { border-color: #5a7bff; }
+    #msg { min-height: 20px; margin-top: 14px; color: #ff9e8b; font-size: 14px; }
+  </style>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+    const email = document.getElementById('email') as HTMLInputElement;
+    const password = document.getElementById('password') as HTMLInputElement;
+    const msg = document.getElementById('msg') as HTMLElement;
+    const form = document.getElementById('f') as HTMLFormElement;
+
+    async function go(kind: 'in' | 'up') {
+      msg.style.color = '#9fb4d4';
+      msg.textContent = kind === 'up' ? 'Creating account…' : 'Signing in…';
+      const creds = { email: email.value, password: password.value };
+      const { data, error } = kind === 'up'
+        ? await supabase.auth.signUp(creds)
+        : await supabase.auth.signInWithPassword(creds);
+      if (error) { msg.style.color = '#ff9e8b'; msg.textContent = error.message; return; }
+      if (!data.session) { msg.style.color = '#9fb4d4'; msg.textContent = 'Check your email to confirm, then sign in.'; return; }
+      location.href = '/';
+    }
+    form.addEventListener('submit', (e) => { e.preventDefault(); go('in'); });
+    document.getElementById('signup')!.addEventListener('click', () => go('up'));
+  </script>
+</Base>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>2048</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0; min-height: 100%;
+    background: radial-gradient(120% 120% at 50% 0%, #11161f 0%, #0b0e14 60%, #070910 100%);
+    color: #cdd6e4;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    padding: 20px 0;
+    box-sizing: border-box;
+  }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px; font-weight: 600;
+    color: #9fb4d4;
+  }
+  .wrap {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+    line-height: 0;
+  }
+  canvas {
+    display: block;
+    width: min(96vw, 500px);
+    height: auto;
+    background: #0a0d13;
+  }
+  .hint { font-size: 12px; color: #6b7890; letter-spacing: 1px; text-align: center; max-width: 500px; line-height: 1.7; }
+  .hint b { color: #9fb4d4; font-weight: 600; }
+  .hint a { color: #9fb4d4; text-decoration: none; }
+</style>
+</head>
+<body>
+  <h1>2048</h1>
+  <div class="wrap">
+    <canvas id="game" width="500" height="600"></canvas>
+  </div>
+  <div class="hint">
+    <b>← ↑ → ↓ / WASD</b> slide &nbsp;·&nbsp; <b>R</b> restart &nbsp;·&nbsp; <b>Enter</b> start / restart
+    &nbsp;·&nbsp; <a href="../index.html" style="color:#9fb4d4;text-decoration:none">‹ arcade</a>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

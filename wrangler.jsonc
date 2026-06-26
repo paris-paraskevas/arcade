@@ -1,0 +1,11 @@
+{
+  // Cloudflare Worker — static-assets host for the arcade.
+  // Today: serves the static games + portal from ./dist (Astro build output).
+  // Later: this same project grows the Astro SSR entry (main) +
+  // Durable Objects bindings for online 2-player (see CLAUDE.md / IDEAS.md).
+  "name": "arcade",
+  "compatibility_date": "2026-06-26",
+  "assets": {
+    "directory": "./dist"
+  }
+}

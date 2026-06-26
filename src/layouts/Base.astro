@@ -1,0 +1,63 @@
+---
+interface Props { title?: string }
+const { title = 'Arcade' } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <style is:global>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(1200px 600px at 50% -10%, #182338 0%, #0b0e14 60%); color: #cdd6e4; font-family: "Segoe UI", system-ui, sans-serif; }
+    a { color: inherit; }
+    header.site { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid #1d2536; }
+    header.site .brand { font-weight: 800; letter-spacing: 6px; font-size: 20px; text-decoration: none; background: linear-gradient(90deg, #7aa2ff, #c98bff, #ff9e8b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    header.site nav { display: flex; align-items: center; gap: 18px; font-size: 14px; }
+    header.site nav a { color: #9fb4d4; text-decoration: none; }
+    header.site nav a:hover { color: #eaf2ff; }
+    #authState { font-size: 13px; color: #9fb4d4; }
+    #authState button { font: inherit; font-size: 13px; background: #1b2233; color: #cdd6e4; border: 1px solid #2a3550; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+    main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 64px; }
+    h2 { color: #eaf2ff; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <a class="brand" href="/">ARCADE</a>
+    <nav>
+      <a href="/">Games</a>
+      <a href="/leaderboard/">Leaderboard</a>
+      <span id="authState"><a href="/sign-in/">Sign in</a></span>
+    </nav>
+  </header>
+  <main><slot /></main>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+    const el = document.getElementById('authState');
+    async function render() {
+      if (!el) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        let name = session.user.email ?? 'player';
+        const { data } = await supabase.from('profile').select('username').eq('id', session.user.id).maybeSingle();
+        if (data?.username) name = data.username;
+        el.textContent = '';
+        const span = document.createElement('span');
+        span.textContent = name + '  ';
+        const btn = document.createElement('button');
+        btn.textContent = 'Sign out';
+        btn.onclick = async () => { await supabase.auth.signOut(); location.reload(); };
+        el.append(span, btn);
+      } else {
+        el.innerHTML = '<a href="/sign-in/">Sign in</a>';
+      }
+    }
+    render();
+    supabase.auth.onAuthStateChange(() => render());
+  </script>
+</body>
+</html>
