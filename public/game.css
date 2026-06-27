@@ -1,0 +1,20 @@
+/* Shared mobile hygiene for arcade game pages (linked into every
+   public/<slug>/index.html). The canvas SIZE itself is handled by
+   /arcade-fit.js (fits both viewport axes, any orientation). */
+
+html, body { overscroll-behavior: none; }   /* no pull-to-refresh / bounce */
+canvas { touch-action: none; }               /* no scroll/zoom on the playfield */
+
+@media (max-width: 640px) {
+  /* Give the playfield the room: shrink the chrome, respect notches. */
+  body {
+    gap: 6px !important;
+    padding:
+      max(6px, env(safe-area-inset-top))
+      env(safe-area-inset-right)
+      max(6px, env(safe-area-inset-bottom))
+      env(safe-area-inset-left) !important;
+  }
+  h1 { font-size: clamp(14px, 4.5vw, 20px) !important; letter-spacing: 2px !important; margin: 4px 0 !important; }
+  .hint { font-size: 10.5px !important; line-height: 1.5; padding: 0 8px; }
+}
