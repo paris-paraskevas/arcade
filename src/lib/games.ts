@@ -18,7 +18,7 @@ export interface Game {
 
 export const ARCADE = {
   name: 'ARCADE',
-  tagline: 'a homemade collection — built one weekend at a time',
+  tagline: 'a homemade collection — 30 games and counting',
 };
 
 export const GAMES: Game[] = [
@@ -41,6 +41,17 @@ export const GAMES: Game[] = [
   { id: 'dino-runner', title: 'Dino Runner', path: '/dino-runner/index.html', emoji: '🦖', blurb: 'Jump and duck through an endless, accelerating desert.', tags: ['arcade', 'runner'], gradient: 'linear-gradient(160deg, #8a93a5 0%, #4a5263 55%, #14171f 100%)', status: 'playable' },
   { id: 'snake-duel', title: 'Snake Duel', path: '/snake-duel/index.html', emoji: '🆚', blurb: 'Two snakes, one grid, best of three. Couch rivalry.', tags: ['arcade', '2-player'], gradient: 'linear-gradient(160deg, #36c5e0 0%, #e0a836 55%, #0b0e14 100%)', status: 'playable' },
 
-  { id: 'top-down-racer', title: 'Top-Down Racer', path: '', emoji: '🏁', blurb: 'Lap a circuit seen from above. A future build.', tags: ['racing', 'arcade'], gradient: 'linear-gradient(160deg, #2bb673 0%, #1d8f33 60%, #0f2747 100%)', status: 'planned' },
-  { id: 'adventure', title: 'The Adventure', path: '', emoji: '🗺️', blurb: 'The story game. The real reason we’re here. Years out — and that’s fine.', tags: ['story', 'adventure'], gradient: 'linear-gradient(160deg, #6a5acd 0%, #34306b 55%, #0b0e14 100%)', status: 'dream' },
+  // ---- Wave 2 ----
+  { id: 'frogger', title: 'Frogger', path: '/frogger/index.html', emoji: '🐸', blurb: 'Hop across traffic and a river of logs. Don’t get squished.', tags: ['arcade', 'classic'], gradient: 'linear-gradient(160deg, #3ddc84 0%, #1d8f33 55%, #14110a 100%)', status: 'playable' },
+  { id: 'missile-command', title: 'Missile Command', path: '/missile-command/index.html', emoji: '🎯', blurb: 'Defend six cities. Intercept the incoming rain.', tags: ['arcade', 'shooter', 'classic'], gradient: 'linear-gradient(160deg, #ff6b5a 0%, #8f2d2d 55%, #0b0e14 100%)', status: 'playable' },
+  { id: 'doodle-jump', title: 'Doodle Jump', path: '/doodle-jump/index.html', emoji: '🦘', blurb: 'Bounce ever upward. Don’t miss the next platform.', tags: ['arcade'], gradient: 'linear-gradient(160deg, #7ec8f0 0%, #4a9f6a 55%, #1a3a2a 100%)', status: 'playable' },
+  { id: 'tron', title: 'Tron Light-Cycles', path: '/tron/index.html', emoji: '🏍️', blurb: 'Light-cycle duel — wall the other player in. Couch 2P.', tags: ['arcade', '2-player'], gradient: 'linear-gradient(160deg, #36e0e0 0%, #1d6f8f 50%, #0b0e14 100%)', status: 'playable' },
+  { id: 'helicopter', title: 'Helicopter', path: '/helicopter/index.html', emoji: '🚁', blurb: 'Hold to fly, release to fall. Thread the cave.', tags: ['arcade'], gradient: 'linear-gradient(160deg, #9aa4b2 0%, #4a6577 55%, #0b1620 100%)', status: 'playable' },
+  { id: 'sokoban', title: 'Sokoban', path: '/sokoban/index.html', emoji: '📦', blurb: 'Push every box onto a target. No takebacks (well, undo).', tags: ['puzzle', 'logic'], gradient: 'linear-gradient(160deg, #d6a05a 0%, #8f5a2e 55%, #2a1a10 100%)', status: 'playable' },
+  { id: 'fifteen-puzzle', title: '15-Puzzle', path: '/fifteen-puzzle/index.html', emoji: '🧮', blurb: 'Slide the tiles into order. A classic time-killer.', tags: ['puzzle', 'classic'], gradient: 'linear-gradient(160deg, #6aa0ff 0%, #3a4f9f 55%, #10142a 100%)', status: 'playable' },
+  { id: 'match-three', title: 'Match-3', path: '/match-three/index.html', emoji: '💎', blurb: 'Swap gems, line up three, chain the cascades.', tags: ['puzzle'], gradient: 'linear-gradient(160deg, #ff6bd6 0%, #a03fb0 50%, #2a1030 100%)', status: 'playable' },
+  { id: 'bubble-shooter', title: 'Bubble Shooter', path: '/bubble-shooter/index.html', emoji: '🫧', blurb: 'Aim, shoot, pop clusters before they reach the bottom.', tags: ['puzzle', 'arcade'], gradient: 'linear-gradient(160deg, #48d0ef 0%, #6a5acd 55%, #16122a 100%)', status: 'playable' },
+  { id: 'air-hockey', title: 'Air Hockey', path: '/air-hockey/index.html', emoji: '🏒', blurb: 'Fast 1v1 on one keyboard (or vs CPU). First to seven.', tags: ['arcade', '2-player'], gradient: 'linear-gradient(160deg, #48c6ef 0%, #2b6aa0 55%, #0b1020 100%)', status: 'playable' },
+  { id: 'artillery', title: 'Artillery Duel', path: '/artillery/index.html', emoji: '🪖', blurb: 'Angle, power, fire. Turn-based tank duel with wind.', tags: ['strategy', '2-player'], gradient: 'linear-gradient(160deg, #c2a05a 0%, #6a5a2e 55%, #1a160a 100%)', status: 'playable' },
+  { id: 'stack-tower', title: 'Stack Tower', path: '/stack-tower/index.html', emoji: '🏗️', blurb: 'Drop blocks dead-center. Every miss shrinks the tower.', tags: ['arcade', 'reaction'], gradient: 'linear-gradient(160deg, #ffb04d 0%, #d6772e 50%, #2a1810 100%)', status: 'playable' },
 ];

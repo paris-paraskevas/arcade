@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script defer src="/arcade-touch.js"></script>
+<link rel="stylesheet" href="/game.css" />
+<script defer src="/arcade-fit.js"></script>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>Stack Tower</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(1000px 500px at 50% -10%, #16202e 0%, #0b0e14 60%);
+    color: #cdd6e4;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; padding: 32px 16px;
+  }
+  h1 {
+    margin: 0; font-size: 22px; letter-spacing: 4px;
+    font-weight: 600; color: #9fb4d4;
+  }
+  #wrap {
+    position: relative;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+    border-radius: 14px; overflow: hidden;
+    line-height: 0;
+  }
+  canvas {
+    display: block;
+    width: min(96vw, 480px);
+    height: auto;
+    background: #0c1320;
+    touch-action: none;            /* keep taps from scrolling/zooming the page */
+    image-rendering: optimizeQuality;
+  }
+  .hint { font-size: 12px; color: #6b7890; letter-spacing: 1px; text-align: center; }
+  .hint b { color: #9fb4d4; font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>STACK TOWER</h1>
+  <div id="wrap">
+    <canvas id="game" width="480" height="680"></canvas>
+  </div>
+  <div class="hint">
+    <b>Space</b> / <b>Click</b> / <b>Tap</b> drop &nbsp;·&nbsp; <b>Space</b>/<b>Enter</b> to start &amp; restart
+    &nbsp;·&nbsp; <a href="../index.html" style="color:#9fb4d4;text-decoration:none">‹ arcade</a>
+  </div>
+  <!-- Classic script tag (NOT type="module") so it runs straight from file:// -->
+  <script src="game.js"></script>
+</body>
+</html>
