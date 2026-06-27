@@ -3,8 +3,9 @@
 //  No libraries, no asset files. Just open index.html.
 //
 //  Two modes, chosen on the title screen:
-//    1) vs CPU     — you are X, the computer is O and uses MINIMAX,
-//                    so it plays perfectly: you can draw, never win.
+//    1) vs CPU     — you are X, the computer is O. Pick a difficulty
+//                    (Easy / Medium / Hard / Unbeatable). "Unbeatable"
+//                    is full MINIMAX; the others degrade optimal play.
 //    2) hotseat    — two humans share the mouse, X then O.
 //
 //  How it works: the board is a flat array of 9 cells holding
@@ -53,9 +54,30 @@
     [0, 4, 8], [2, 4, 6],              // diagonals
   ];
 
+  // ---- Difficulty (vs-CPU only) -------------------------------
+  // Each level degrades optimal play differently. 'unbeatable' is the
+  // untouched minimax AI; see chooseCpuMove() for how the rest behave.
+  const DIFFS = ['easy', 'medium', 'hard', 'unbeatable'];
+  const DIFF_LABEL = {
+    easy: 'EASY',
+    medium: 'MEDIUM',
+    hard: 'HARD',
+    unbeatable: 'UNBEATABLE',
+  };
+  const DIFF_BLURB = {
+    easy: 'mostly random — should be easy to win',
+    medium: 'blocks & wins, otherwise loose play',
+    hard: 'near-perfect, slips occasionally',
+    unbeatable: 'perfect AI: you can draw, never win',
+  };
+  let difficulty = 'medium';   // default to Medium
+
   // ---- Game state (ALL initialized here, at load) -------------
   // States: 'title' | 'playing' | 'over'
   let state = 'title';
+  // On the title, 'mode' lets you pick 1P/2P; choosing 1P switches to
+  // 'difficulty' so you can pick a level (by key 1–4 or by clicking).
+  let titlePhase = 'mode';     // 'mode' | 'difficulty'
   let mode = 'cpu';            // 'cpu' (1P vs minimax) or 'hotseat' (2P)
   let board;                  // length-9 array of '', 'X', 'O'
   let current;                // 'X' or 'O' — whose turn it is
@@ -71,6 +93,11 @@
 
   const CPU_THINK = 380;       // ms the CPU "thinks" before placing
   const AUTO_RESTART = 1700;   // ms after a result before the next round
+
+  // Clickable rectangles drawn on the title screen (for touch/mouse).
+  // Each is { x, y, w, h, action }. Rebuilt every frame by the title
+  // drawing code, then hit-tested by the canvas click handler.
+  let titleRects = [];
 
   // ---- Scoreboard persistence (guarded) -----------------------
   function loadScores() {
@@ -242,6 +269,61 @@
     return candidates[(Math.random() * candidates.length) | 0];
   }
 
+  // ---- Difficulty wrappers around the perfect AI --------------
+  // The levels below all build on bestCpuMove() (minimax). We weaken
+  // it by mixing in random legal moves, or by only doing the obvious
+  // tactical checks. 'unbeatable' just calls minimax untouched.
+
+  // Indices of all empty cells right now.
+  function emptyCells() {
+    const out = [];
+    for (let i = 0; i < 9; i++) if (!board[i]) out.push(i);
+    return out;
+  }
+  function randomMove() {
+    const e = emptyCells();
+    return e.length ? e[(Math.random() * e.length) | 0] : null;
+  }
+  // First cell where dropping `mark` immediately completes a line, else -1.
+  function winningMoveFor(mark) {
+    for (let i = 0; i < 9; i++) {
+      if (board[i]) continue;
+      board[i] = mark;
+      const win = findWinLine(board, mark) != null;
+      board[i] = '';
+      if (win) return i;
+    }
+    return -1;
+  }
+
+  // Pick O's move for the current difficulty. Returns a cell index.
+  function chooseCpuMove() {
+    switch (difficulty) {
+      case 'easy':
+        // ~80% random, 20% optimal — a casual player wins often.
+        return Math.random() < 0.8 ? randomMove() : bestCpuMove();
+
+      case 'medium': {
+        // Always grab an immediate win; always block the player's
+        // immediate win. Otherwise 50% random / 50% optimal.
+        const win = winningMoveFor('O');
+        if (win >= 0) return win;
+        const block = winningMoveFor('X');
+        if (block >= 0) return block;
+        return Math.random() < 0.5 ? randomMove() : bestCpuMove();
+      }
+
+      case 'hard':
+        // Optimal, but a ~12% chance to slip into a random move so a
+        // sharp player can occasionally punish it.
+        return Math.random() < 0.12 ? randomMove() : bestCpuMove();
+
+      case 'unbeatable':
+      default:
+        return bestCpuMove();
+    }
+  }
+
   // ---- Input --------------------------------------------------
   // Translate a mouse event into board-space and act on it.
   function cellFromEvent(e) {
@@ -255,10 +337,32 @@
     return row * 3 + col;
   }
 
+  // Map a mouse/touch event to the canvas's internal pixel space.
+  function pointFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (WIDTH / rect.width),
+      y: (e.clientY - rect.top) * (HEIGHT / rect.height),
+    };
+  }
+
+  // Begin a round in the given mode. For vs-CPU the difficulty has
+  // already been chosen on the title screen.
   function startGame(m) {
     mode = m;
     newRound();
+    titlePhase = 'mode';
     state = 'playing';
+  }
+
+  // From the title's mode screen, pressing 1 / clicking "vs CPU" opens
+  // the difficulty picker instead of starting immediately.
+  function chooseCpu() { titlePhase = 'difficulty'; }
+
+  // Lock in a difficulty and start the vs-CPU game.
+  function startCpu(level) {
+    difficulty = level;
+    startGame('cpu');
   }
 
   canvas.addEventListener('mousemove', (e) => {
@@ -269,7 +373,20 @@
   canvas.addEventListener('click', (e) => {
     ensureAudio(); // first gesture unlocks WebAudio
 
-    if (state === 'title') return;            // title uses keys (1 / 2)
+    if (state === 'title') {
+      // Hit-test the on-canvas options first (works for touch too).
+      const p = pointFromEvent(e);
+      for (const r of titleRects) {
+        if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+          r.action();
+          return;
+        }
+      }
+      // Click on empty title space: on the mode screen, fall through to
+      // the difficulty picker (matches the universal "click to start").
+      if (titlePhase === 'mode') chooseCpu();
+      return;
+    }
 
     if (state === 'over') {                    // click skips the pause
       newRound();
@@ -287,8 +404,28 @@
   window.addEventListener('keydown', (e) => {
     ensureAudio();
 
-    if (e.key === '1') { startGame('cpu'); return; }
-    if (e.key === '2') { startGame('hotseat'); return; }
+    if (state === 'title') {
+      if (titlePhase === 'mode') {
+        if (e.key === '1') { chooseCpu(); return; }       // 1 → pick difficulty
+        if (e.key === '2') { startGame('hotseat'); return; }
+        // Space / Enter behaves like the rest of the arcade: it advances
+        // to the difficulty picker (vs CPU is the default path).
+        if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') { chooseCpu(); return; }
+      } else { // difficulty picker
+        if (e.key === '1') { startCpu('easy'); return; }
+        if (e.key === '2') { startCpu('medium'); return; }
+        if (e.key === '3') { startCpu('hard'); return; }
+        if (e.key === '4') { startCpu('unbeatable'); return; }
+        // Space / Enter accepts the current default (Medium).
+        if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') { startCpu(difficulty); return; }
+        // Escape / Backspace steps back to the mode screen.
+        if (e.key === 'Escape' || e.key === 'Backspace') { titlePhase = 'mode'; return; }
+      }
+    } else {
+      // Outside the title, 1 / 2 are quick-starts (CPU uses current diff).
+      if (e.key === '1') { startGame('cpu'); return; }
+      if (e.key === '2') { startGame('hotseat'); return; }
+    }
 
     // R resets the running scoreboard (any time).
     if (e.key === 'r' || e.key === 'R') {
@@ -425,8 +562,10 @@
   }
 
   function drawHUD() {
-    // Title row: mode + whose turn / result.
-    let modeLabel = mode === 'cpu' ? 'VS CPU' : 'HOTSEAT';
+    // Title row: mode (+ difficulty for vs-CPU) and whose turn / result.
+    let modeLabel = mode === 'cpu'
+      ? 'VS CPU · ' + DIFF_LABEL[difficulty]
+      : 'HOTSEAT';
     text(modeLabel, OX, 30, 14, C.dim, 600, 'left');
 
     let status;
@@ -452,21 +591,74 @@
     text(scores.O + '  ' + labelO, WIDTH - OX - 6, y, 15, C.o, 600, 'right');
   }
 
+  // Draw one selectable "pill" centered at (cx, cy), register its click
+  // region in titleRects, and highlight it when `selected`. The label is
+  // "<num>  <main>"; an optional sub-line renders beneath.
+  function titleOption(cx, cy, w, h, num, main, sub, selected, action) {
+    const x = cx - w / 2, y = cy - h / 2;
+
+    ctx.save();
+    // Box
+    ctx.fillStyle = selected ? 'rgba(94,200,255,0.14)' : 'rgba(159,180,212,0.06)';
+    ctx.strokeStyle = selected ? C.x : 'rgba(159,180,212,0.22)';
+    ctx.lineWidth = selected ? 2.5 : 1.5;
+    const r = 12;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    const hasSub = !!sub;
+    const mainY = hasSub ? cy - 11 : cy;
+    text(num + '   ' + main, cx, mainY, 19, selected ? C.text : C.accent, 700, 'center');
+    if (hasSub) text(sub, cx, cy + 13, 12, C.dim, 500, 'center');
+
+    titleRects.push({ x, y, w, h, action });
+  }
+
   function drawTitle() {
     ctx.fillStyle = 'rgba(8,11,18,0.82)';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    text('TIC-TAC-TOE', WIDTH / 2, HEIGHT * 0.26, 40, C.accent, 800);
+    // Rebuild clickable regions each frame.
+    titleRects = [];
+
+    text('TIC-TAC-TOE', WIDTH / 2, HEIGHT * 0.16, 40, C.accent, 800);
 
     // Little decorative X and O.
-    text('X', WIDTH * 0.40, HEIGHT * 0.40, 44, C.x, 800);
-    text('O', WIDTH * 0.60, HEIGHT * 0.40, 44, C.o, 800);
+    text('X', WIDTH * 0.40, HEIGHT * 0.27, 40, C.x, 800);
+    text('O', WIDTH * 0.60, HEIGHT * 0.27, 40, C.o, 800);
 
-    text('Press  1  —  1 player vs CPU', WIDTH / 2, HEIGHT * 0.55, 19, C.text, 600);
-    text('(perfect AI: you can draw, never win)', WIDTH / 2, HEIGHT * 0.60, 13, C.dim, 500);
-    text('Press  2  —  2 players hotseat', WIDTH / 2, HEIGHT * 0.68, 19, C.text, 600);
+    if (titlePhase === 'mode') {
+      text('CHOOSE A MODE', WIDTH / 2, HEIGHT * 0.40, 14, C.dim, 700, 'center');
+      const w = 320, h = 56;
+      titleOption(WIDTH / 2, HEIGHT * 0.52, w, h, '1', 'vs CPU',
+        'pick a difficulty next', false, chooseCpu);
+      titleOption(WIDTH / 2, HEIGHT * 0.66, w, h, '2', 'hotseat',
+        'two players share the mouse', false, () => startGame('hotseat'));
 
-    text('Click a cell to place  ·  R resets scores', WIDTH / 2, HEIGHT * 0.80, 14, C.accent, 600);
+      text('Press a number or tap an option  ·  R resets scores',
+        WIDTH / 2, HEIGHT * 0.82, 13, C.accent, 600, 'center');
+    } else {
+      text('CHOOSE DIFFICULTY  ·  vs CPU', WIDTH / 2, HEIGHT * 0.37, 14, C.dim, 700, 'center');
+
+      const w = 340, h = 46;
+      const ys = [0.46, 0.555, 0.65, 0.745];
+      DIFFS.forEach((lvl, idx) => {
+        titleOption(WIDTH / 2, HEIGHT * ys[idx], w, h, String(idx + 1),
+          DIFF_LABEL[lvl], DIFF_BLURB[lvl], difficulty === lvl,
+          () => startCpu(lvl));
+      });
+
+      text('Tap or press 1–4  ·  Enter = ' + DIFF_LABEL[difficulty] + '  ·  Esc back',
+        WIDTH / 2, HEIGHT * 0.86, 12, C.accent, 600, 'center');
+    }
   }
 
   // ---- The frame ----------------------------------------------
@@ -507,7 +699,7 @@
     if (state === 'playing' && mode === 'cpu' && current === 'O' && !winner) {
       cpuTimer -= dt;
       if (cpuTimer <= 0) {
-        const move = bestCpuMove();
+        const move = chooseCpuMove();
         if (move != null) place(move, 'O');
       }
     }

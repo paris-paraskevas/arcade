@@ -59,6 +59,26 @@
   const WIN_SCORE = 11;     // first to 11 wins
   let mode = 1;             // 1 = vs CPU, 2 = two-player (default highlighted on title)
 
+  // ---------------------------------------------------------------------------
+  // CPU difficulty. FOUR tiers; default MEDIUM. "Unbeatable" is the original
+  // tracking AI, untouched. The weaker tiers are produced by capping paddle
+  // speed, widening the aim error (offset + jitter), and reacting late (only
+  // chasing once the ball is heading this way and/or past mid-court).
+  //   speedScale  — multiplies the original ramped CPU speed (1 = full).
+  //   errorScale  — multiplies the original ramped aim-error amplitude.
+  //   jitter      — extra px of random wobble added to every re-aim.
+  //   reactX      — fraction of the field the ball must cross toward the CPU
+  //                 before it starts truly chasing (0 = react immediately like
+  //                 the original; 0.5 = only once the ball passes mid-court).
+  // ---------------------------------------------------------------------------
+  const DIFFICULTIES = [
+    { key: 'EASY',       label: 'EASY',       speedScale: 0.55, errorScale: 2.0, jitter: 60, reactX: 0.62 },
+    { key: 'MEDIUM',     label: 'MEDIUM',     speedScale: 0.78, errorScale: 1.4, jitter: 26, reactX: 0.30 },
+    { key: 'HARD',       label: 'HARD',       speedScale: 0.95, errorScale: 0.7, jitter: 8,  reactX: 0.10 },
+    { key: 'UNBEATABLE', label: 'UNBEATABLE', speedScale: 1.0,  errorScale: 1.0, jitter: 0,  reactX: 0.0  },
+  ];
+  let difficulty = 1;       // index into DIFFICULTIES; 1 = MEDIUM (default)
+
   // Scores.
   let scoreL = 0;
   let scoreR = 0;
@@ -134,8 +154,14 @@
     else if (k === 's') { keys.s = true; e.preventDefault(); }
     else if (k === 'arrowup') { keys.up = true; e.preventDefault(); }
     else if (k === 'arrowdown') { keys.down = true; e.preventDefault(); }
-    else if (k === '1') { onUserGesture(); chooseMode(1); }
-    else if (k === '2') { onUserGesture(); chooseMode(2); }
+    else if (k === '1' || k === '2' || k === '3' || k === '4') {
+      onUserGesture();
+      // On the title, number keys configure the upcoming match:
+      //   1/2 also pick the mode (preserved), and 1-4 pick the CPU difficulty.
+      if (k === '1') chooseMode(1);
+      else if (k === '2') chooseMode(2);
+      chooseDifficulty(parseInt(k, 10) - 1);
+    }
     else if (k === ' ' || k === 'spacebar' || k === 'space' || k === 'enter') {
       e.preventDefault();
       onUserGesture();
@@ -151,23 +177,54 @@
     else if (k === 'arrowdown') keys.down = false;
   });
 
-  // Pointer support: a click/tap acts like Space (start / serve / restart).
-  canvas.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    onUserGesture();
-    handleAction();
-  });
-  canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    onUserGesture();
-    handleAction();
-  }, { passive: false });
+  // Map a pointer event to internal 800x500 canvas coordinates (the element is
+  // CSS-scaled, so we rescale from the bounding box).
+  function pointerPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    const cx = src.clientX, cy = src.clientY;
+    return {
+      x: (cx - r.left) * (W / r.width),
+      y: (cy - r.top) * (H / r.height),
+    };
+  }
 
-  // Pick a mode from the title screen and drop straight into the first serve.
+  // On-canvas hit zones for the title screen (rebuilt every title render so the
+  // click targets always match what's drawn). Each = {x,y,w,h, kind, value}.
+  let titleZones = [];
+
+  // A pointer down on the title may select a mode/difficulty option; anywhere
+  // else (or on any other screen) it behaves like Space (start / serve / restart).
+  function handlePointer(e) {
+    e.preventDefault();
+    onUserGesture();
+    if (state === STATE.TITLE) {
+      const p = pointerPos(e);
+      for (const z of titleZones) {
+        if (p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h) {
+          if (z.kind === 'mode') chooseMode(z.value);
+          else if (z.kind === 'diff') chooseDifficulty(z.value);
+          return; // consumed by an option; don't also start the match
+        }
+      }
+    }
+    handleAction();
+  }
+
+  canvas.addEventListener('mousedown', handlePointer);
+  canvas.addEventListener('touchstart', handlePointer, { passive: false });
+
+  // Pick a mode from the title screen. Selection only — the player still presses
+  // Space / clicks Start to begin, so difficulty can be adjusted first.
   function chooseMode(m) {
     if (state !== STATE.TITLE) return;
     mode = m;
-    startMatch();
+  }
+
+  // Pick a CPU difficulty tier from the title screen (index into DIFFICULTIES).
+  function chooseDifficulty(d) {
+    if (state !== STATE.TITLE) return;
+    if (d >= 0 && d < DIFFICULTIES.length) difficulty = d;
   }
 
   // One action entry point, behaviour depends on the current screen.
@@ -308,26 +365,40 @@
   // re-aims on a short reaction timer with a deliberate aim error, and is capped
   // in speed. The cap and accuracy scale up with ball speed, so early rallies
   // are beatable while later ones get fierce.
+  //
+  // The "UNBEATABLE" tier runs this logic verbatim (its modifiers are all
+  // identity: speedScale 1, errorScale 1, jitter 0, reactX 0). Easier tiers
+  // weaken the paddle via three dials pulled from the active DIFFICULTIES entry:
+  // a slower max speed, a wider aim error, and reacting late (the ball must
+  // cross some fraction of the field toward the CPU before it truly chases).
   function updateCPU(dt) {
     const prevY = right.y;
+    const D = DIFFICULTIES[difficulty];
 
     // How fast/sharp is the CPU right now? Ramp from base->max across the ball's
     // speed range, so a fresh serve is gentle and a long rally is brutal.
     const t = clamp((ball.speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED), 0, 1);
-    const cpuSpeed = CPU_BASE_SPEED + (CPU_MAX_SPEED - CPU_BASE_SPEED) * t;
+    const cpuSpeed = (CPU_BASE_SPEED + (CPU_MAX_SPEED - CPU_BASE_SPEED) * t) * D.speedScale;
     // Aim error shrinks as the rally heats up (less wobble when fast).
-    const errorAmp = (1 - t) * 46 + 8; // ~54px early, ~8px late
+    const errorAmp = ((1 - t) * 46 + 8) * D.errorScale + D.jitter; // ~54px early, ~8px late (UNBEATABLE)
+
+    // Reaction lateness: how far the ball has travelled toward the CPU, 0..1.
+    // For UNBEATABLE (reactX 0) this is always "engaged" so behaviour is identical.
+    const incomingProgress = clamp(ball.x / W, 0, 1); // 0 at left wall, 1 at right (CPU) wall
+    const engaged = incomingProgress >= D.reactX;
 
     cpuReactT -= dt;
-    if (ball.vx > 0) {
-      // Ball incoming: periodically re-pick a target with a small random offset.
+    if (ball.vx > 0 && engaged) {
+      // Ball incoming AND past the reaction threshold: periodically re-pick a
+      // target with a random offset (bigger on easier tiers).
       if (cpuReactT <= 0) {
         cpuReactT = 0.07 + Math.random() * 0.09; // re-aim every ~70-160ms
         // Predict roughly where the ball is going, then add human-like error.
         cpuTargetY = ball.y + (Math.random() * 2 - 1) * errorAmp;
       }
     } else {
-      // Ball moving away: drift lazily back toward center, re-aiming slowly.
+      // Ball moving away (or not yet engaged): drift lazily back toward center,
+      // re-aiming slowly. This also produces the "reacts late" feel on easy tiers.
       if (cpuReactT <= 0) {
         cpuReactT = 0.25 + Math.random() * 0.2;
         cpuTargetY = H / 2 + (Math.random() * 2 - 1) * 30;
@@ -545,6 +616,13 @@
     ctx.fillStyle = '#6b7890';
     ctx.fillText('P1', W / 2 - 70, 100);
     ctx.fillText(mode === 1 ? 'CPU' : 'P2', W / 2 + 70, 100);
+
+    // In 1P, surface the active CPU difficulty in the HUD, e.g. "CPU · MEDIUM".
+    if (mode === 1) {
+      ctx.font = '600 12px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = '#54d6ff';
+      ctx.fillText('CPU · ' + DIFFICULTIES[difficulty].label, W / 2 + 70, 118);
+    }
     ctx.restore();
   }
 
@@ -565,22 +643,71 @@
     ctx.restore();
   }
 
+  // A pill button: rounded rect + centered label, returns its hit rect so the
+  // caller can register it as a clickable zone.
+  function drawPill(cx, cy, w, h, label, size, selected, accent) {
+    const x = cx - w / 2, y = cy - h / 2;
+    const ac = accent || '#54d6ff';
+    ctx.save();
+    // Body.
+    ctx.fillStyle = selected ? 'rgba(84, 214, 255, 0.18)' : 'rgba(159, 180, 212, 0.06)';
+    roundRect(x, y, w, h, h / 2);
+    ctx.fill();
+    // Border (glows when selected).
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeStyle = selected ? ac : 'rgba(159, 180, 212, 0.35)';
+    if (selected) { ctx.shadowColor = ac; ctx.shadowBlur = 14; }
+    roundRect(x, y, w, h, h / 2);
+    ctx.stroke();
+    ctx.restore();
+    // Label.
+    ctx.save();
+    ctx.fillStyle = selected ? '#dff4ff' : '#9fb4d4';
+    ctx.font = (selected ? 700 : 600) + ' ' + size + 'px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, cy + 1);
+    ctx.restore();
+    return { x: x, y: y, w: w, h: h };
+  }
+
   function drawTitle() {
     dimScreen(0.58);
-    centerText('PONG', H / 2 - 116, 66, '#9fb4d4', 700);
-    centerText('First to ' + WIN_SCORE + ' wins', H / 2 - 66, 17, '#cdd6e4', 400);
+    titleZones = []; // rebuilt to match exactly what we draw this frame
 
-    // Mode chooser — the currently-selected mode glows.
-    const oneColor = mode === 1 ? '#54d6ff' : '#6b7890';
-    const twoColor = mode === 2 ? '#54d6ff' : '#6b7890';
-    centerText('Press  1  —  1P (vs CPU)', H / 2 - 14, 22, oneColor, mode === 1 ? 700 : 500);
-    centerText('Press  2  —  2P', H / 2 + 22, 22, twoColor, mode === 2 ? 700 : 500);
+    centerText('PONG', H / 2 - 168, 60, '#9fb4d4', 700);
+    centerText('First to ' + WIN_SCORE + ' wins', H / 2 - 124, 16, '#cdd6e4', 400);
 
-    centerText('Left  W / S        Right  ↑ / ↓', H / 2 + 70, 16, '#cdd6e4', 400);
+    // --- Mode chooser: two tappable pills (also keys 1 / 2) ---
+    centerText('MODE', H / 2 - 92, 12, '#6b7890', 700);
+    const modeY = H / 2 - 58;
+    const z1 = drawPill(W / 2 - 116, modeY, 210, 40, '1  ·  1P (vs CPU)', 17, mode === 1);
+    titleZones.push({ kind: 'mode', value: 1, x: z1.x, y: z1.y, w: z1.w, h: z1.h });
+    const z2 = drawPill(W / 2 + 116, modeY, 210, 40, '2  ·  2P', 17, mode === 2);
+    titleZones.push({ kind: 'mode', value: 2, x: z2.x, y: z2.y, w: z2.w, h: z2.h });
+
+    // --- Difficulty chooser: four tappable pills (also keys 1-4) ---
+    // Dim the whole row in 2P, where CPU difficulty is irrelevant.
+    const diffActive = mode === 1;
+    ctx.globalAlpha = diffActive ? 1 : 0.4;
+    centerText('CPU DIFFICULTY', H / 2 + 6, 12, '#6b7890', 700);
+    const diffY = H / 2 + 44;
+    const pillW = 150, gap = 12;
+    const totalW = pillW * 4 + gap * 3;
+    let px = W / 2 - totalW / 2 + pillW / 2;
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      const accent = (DIFFICULTIES[i].key === 'UNBEATABLE') ? '#ff5d73' : '#54d6ff';
+      const z = drawPill(px, diffY, pillW, 38, (i + 1) + '  ' + DIFFICULTIES[i].label, 15, difficulty === i, accent);
+      titleZones.push({ kind: 'diff', value: i, x: z.x, y: z.y, w: z.w, h: z.h });
+      px += pillW + gap;
+    }
+    ctx.globalAlpha = 1;
+
+    centerText('Left  W / S        Right  ↑ / ↓', H / 2 + 96, 15, '#cdd6e4', 400);
 
     const a = 0.55 + 0.45 * Math.sin(performance.now() / 350);
     ctx.globalAlpha = a;
-    centerText('Press SPACE to start', H / 2 + 116, 20, '#9fb4d4', 700);
+    centerText('Press SPACE to start', H / 2 + 138, 19, '#9fb4d4', 700);
     ctx.globalAlpha = 1;
   }
 

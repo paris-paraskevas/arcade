@@ -3,13 +3,17 @@
 //  No libraries, no assets. All drawing is procedural; audio is
 //  WebAudio built in code and started on the first user input.
 //
-//  Two modes: 1-player vs a minimax CPU, or 2-player hotseat.
+//  Two modes: 1-player vs a minimax CPU, or 2-player hotseat. The CPU has
+//  four difficulty levels (Easy / Medium / Hard / Unbeatable) chosen on a
+//  title sub-screen, selectable by number keys or by tapping the canvas.
 //
 //  The interesting bits are commented for a learner:
 //    - win detection            (scan 4 directions from every cell)
 //    - the falling-disc animation (cosmetic; the board commits instantly)
 //    - the CPU                  (depth-limited minimax with alpha-beta
-//                                pruning + a positional heuristic)
+//                                pruning + a positional heuristic; the
+//                                search depth is the difficulty dial, and
+//                                Easy skips the search entirely)
 // ============================================================
 (() => {
   'use strict';
@@ -55,11 +59,28 @@
   function discName(p) { return p === RED ? 'RED' : 'YELLOW'; }
 
   // ---------- Game state ----------
-  // states: 'title' -> 'playing' -> ('falling' transient) -> 'win' | 'draw'
+  // states: 'title' -> 'difficulty' (vs-CPU only) -> 'playing'
+  //         -> ('falling' transient) -> 'win' | 'draw'
   // (the falling disc is an animation overlaid while state stays 'playing'
   //  but input is locked via `anim` being non-null.)
   let state = 'title';
   let mode = 1;            // 1 = vs CPU, 2 = hotseat
+
+  // ---------- Difficulty ----------
+  // Four levels. "Unbeatable" is the original depth-6 search. Easy is a
+  // heuristic-free random mover that only grabs an instant win / instant
+  // block. Medium/Hard are shallower minimax searches.
+  // levels: { name, depth }  — depth 0 means "Easy" (special-cased, no search).
+  const DIFFICULTIES = [
+    { name: 'Easy', depth: 0 },
+    { name: 'Medium', depth: 2 },
+    { name: 'Hard', depth: 4 },
+    { name: 'Unbeatable', depth: 6 },
+  ];
+  let difficulty = 1;      // index into DIFFICULTIES; default = Medium
+  // Clickable rectangles for the difficulty picker, rebuilt each render.
+  // Each: { x, y, w, h, idx }.
+  let diffHit = [];
   let grid;                // ROWS x COLS, EMPTY/RED/YELLOW. row 0 is the TOP.
   let current;             // whose turn it is (RED or YELLOW)
   let cursorCol;           // highlighted column for keyboard play
@@ -198,6 +219,19 @@
     newRound(RED);
   }
 
+  // Enter the difficulty picker (vs-CPU only). The actual game starts once a
+  // level is confirmed via confirmDifficulty().
+  function openDifficulty() {
+    mode = 1;
+    state = 'difficulty';
+  }
+
+  // Confirm a difficulty index and start a vs-CPU game.
+  function confirmDifficulty(idx) {
+    if (idx >= 0 && idx < DIFFICULTIES.length) difficulty = idx;
+    startGame(1);
+  }
+
   // ---------- Move execution ----------
   // Begin dropping `player`'s disc into `col`. Kicks off the falling
   // animation; the grid is committed when the disc lands (in update()).
@@ -266,8 +300,11 @@
   // win/block at the root so the very first replies feel sharp.
   const CPU = YELLOW;
   const HUMAN = RED;
-  const SEARCH_DEPTH = 6;       // plies; 6 is a genuine challenge but still snappy
   const WIN_SCORE = 1000000;
+
+  // The active search depth for the current difficulty (set when a game
+  // starts). "Unbeatable" keeps the original depth-6 search.
+  function searchDepth() { return DIFFICULTIES[difficulty].depth; }
 
   // Score a "window" of 4 consecutive cells from CPU's perspective.
   function scoreWindow(w) {
@@ -331,11 +368,12 @@
   }
 
   // Returns the best score for the player "to move" (maximizing = CPU).
-  function minimax(g, depth, alpha, beta, maximizing) {
+  // `rootDepth` is the full depth of this search so we can reward sooner wins.
+  function minimax(g, depth, alpha, beta, maximizing, rootDepth) {
     const cols = validCols(g);
     // Terminal checks first.
-    if (isWin(g, CPU)) return WIN_SCORE - (SEARCH_DEPTH - depth);   // sooner wins score higher
-    if (isWin(g, HUMAN)) return -WIN_SCORE + (SEARCH_DEPTH - depth);
+    if (isWin(g, CPU)) return WIN_SCORE - (rootDepth - depth);   // sooner wins score higher
+    if (isWin(g, HUMAN)) return -WIN_SCORE + (rootDepth - depth);
     if (cols.length === 0) return 0;        // draw (full board)
     if (depth === 0) return evaluate(g);
 
@@ -345,7 +383,7 @@
         const col = cols[i];
         const row = dropRow(g, col);
         g[row][col] = CPU;
-        const sc = minimax(g, depth - 1, alpha, beta, false);
+        const sc = minimax(g, depth - 1, alpha, beta, false, rootDepth);
         g[row][col] = EMPTY;                // undo
         if (sc > best) best = sc;
         if (best > alpha) alpha = best;
@@ -358,7 +396,7 @@
         const col = cols[i];
         const row = dropRow(g, col);
         g[row][col] = HUMAN;
-        const sc = minimax(g, depth - 1, alpha, beta, true);
+        const sc = minimax(g, depth - 1, alpha, beta, true, rootDepth);
         g[row][col] = EMPTY;
         if (sc < best) best = sc;
         if (best < beta) beta = best;
@@ -368,38 +406,56 @@
     }
   }
 
-  // Pick the CPU's column. Root level: evaluate each move, keep the best;
-  // collect ties and pick randomly so the CPU isn't perfectly predictable.
+  // Find an immediate winning column for player `p`, or -1.
+  function findImmediate(p) {
+    const cols = validCols(grid);
+    for (let i = 0; i < cols.length; i++) {
+      const col = cols[i];
+      const row = dropRow(grid, col);
+      grid[row][col] = p;
+      const won = isWin(grid, p);
+      grid[row][col] = EMPTY;
+      if (won) return col;
+    }
+    return -1;
+  }
+
+  // Pick the CPU's column based on the current difficulty.
+  //   Easy       : grab an instant win, else block the player's instant win,
+  //                else a random legal column (no lookahead — very beatable).
+  //   Medium/Hard/Unbeatable : depth-2 / depth-4 / depth-6 alpha-beta search.
   function cpuChooseColumn() {
     const cols = validCols(grid);
     if (cols.length === 0) return -1;
 
-    // 1) Take an immediate win if available.
-    for (let i = 0; i < cols.length; i++) {
-      const col = cols[i];
-      const row = dropRow(grid, col);
-      grid[row][col] = CPU;
-      const won = isWin(grid, CPU);
-      grid[row][col] = EMPTY;
-      if (won) return col;
+    const depth = searchDepth();
+
+    // Easy: only the two "obvious" tactics, then random.
+    if (depth <= 0) {
+      const win = findImmediate(CPU);
+      if (win >= 0) return win;
+      const block = findImmediate(HUMAN);
+      if (block >= 0) return block;
+      return cols[(Math.random() * cols.length) | 0];
     }
-    // 2) Block the human's immediate win.
-    for (let i = 0; i < cols.length; i++) {
-      const col = cols[i];
-      const row = dropRow(grid, col);
-      grid[row][col] = HUMAN;
-      const wouldWin = isWin(grid, HUMAN);
-      grid[row][col] = EMPTY;
-      if (wouldWin) return col;
-    }
-    // 3) Otherwise, full minimax search.
+
+    // Stronger levels: take an immediate win, then block, then search. The
+    // win/block short-circuit keeps the obvious replies sharp at any depth.
+    const win = findImmediate(CPU);
+    if (win >= 0) return win;
+    const block = findImmediate(HUMAN);
+    if (block >= 0) return block;
+
+    // Full minimax search at the difficulty's depth. Root level: evaluate each
+    // move, keep the best; collect ties and pick randomly so the CPU isn't
+    // perfectly predictable.
     let best = -Infinity;
     let bestCols = [cols[0]];
     for (let i = 0; i < cols.length; i++) {
       const col = cols[i];
       const row = dropRow(grid, col);
       grid[row][col] = CPU;
-      const sc = minimax(grid, SEARCH_DEPTH - 1, -Infinity, Infinity, false);
+      const sc = minimax(grid, depth - 1, -Infinity, Infinity, false, depth);
       grid[row][col] = EMPTY;
       if (sc > best) { best = sc; bestCols = [col]; }
       else if (sc === best) bestCols.push(col);
@@ -621,8 +677,11 @@
     drawDisc(ry, 30, YELLOW, 13, false);
     label(String(yelWins), ry - 18, 36, COL_YELLOW, 20, 700, 'right');
 
-    // Mode tag, centered up top
-    label(mode === 1 ? 'VS CPU' : 'HOTSEAT', W / 2, 24, MUTED, 11, 600, 'center');
+    // Mode tag, centered up top. In vs-CPU mode, append the difficulty.
+    const modeTag = mode === 1
+      ? 'VS CPU · ' + DIFFICULTIES[difficulty].name.toUpperCase()
+      : 'HOTSEAT';
+    label(modeTag, W / 2, 24, MUTED, 11, 600, 'center');
 
     // Turn / result text, centered just under the score row
     let msg, col;
@@ -683,6 +742,53 @@
     ctx.textAlign = 'left';
   }
 
+  // The difficulty picker (vs-CPU). Draws four tappable buttons and records
+  // their hit-rects into `diffHit` so clicks/taps can be mapped back to a
+  // level. The current `difficulty` index is highlighted as the default.
+  function drawDifficulty() {
+    ctx.save();
+    ctx.fillStyle = 'rgba(7,9,16,0.86)';
+    ctx.fillRect(0, 0, W, H);
+
+    label('CHOOSE DIFFICULTY', W / 2, H / 2 - 150, ACCENT, 26, 700, 'center');
+    label('vs CPU', W / 2, H / 2 - 122, MUTED, 13, 600, 'center');
+
+    const subtitle = [
+      'only blocks & grabs obvious wins',
+      'looks 2 moves ahead',
+      'looks 4 moves ahead',
+      'perfect play — good luck',
+    ];
+
+    const bw = 320, bh = 52, gap = 14;
+    const x = (W - bw) / 2;
+    let y = H / 2 - 88;
+    diffHit = [];
+    for (let i = 0; i < DIFFICULTIES.length; i++) {
+      const sel = i === difficulty;
+      roundRect(x, y, bw, bh, 12);
+      ctx.fillStyle = sel ? 'rgba(63,114,239,0.30)' : 'rgba(255,255,255,0.05)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = sel ? COL_BOARD_HI : 'rgba(159,180,212,0.25)';
+      ctx.stroke();
+
+      // number key chip on the left
+      label(String(i + 1), x + 22, y + bh / 2 + 7, sel ? '#ffffff' : ACCENT, 20, 700, 'center');
+      // name + one-line description
+      label(DIFFICULTIES[i].name, x + 46, y + bh / 2 - 2, sel ? '#ffffff' : TEXT, 18, 700, 'left');
+      label(subtitle[i], x + 46, y + bh / 2 + 16, MUTED, 11, 500, 'left');
+
+      diffHit.push({ x: x, y: y, w: bw, h: bh, idx: i });
+      y += bh + gap;
+    }
+
+    label('press  1–4  or  tap      ·      default: ' + DIFFICULTIES[difficulty].name,
+      W / 2, y + 16, MUTED, 12, 500, 'center');
+    ctx.restore();
+    ctx.textAlign = 'left';
+  }
+
   function render() {
     ctx.clearRect(0, 0, W, H);
 
@@ -702,6 +808,8 @@
         { t: 'Press  2  —  2 player hotseat', c: COL_RED, s: 17, w: 700, gap: 44 },
         { t: '← →  move      Space / ↓  drop      click a column', c: MUTED, s: 12, gap: 22 },
       ], true);
+    } else if (state === 'difficulty') {
+      drawDifficulty();
     } else if (state === 'win' || state === 'draw') {
       let head, hc;
       if (state === 'draw') { head = 'DRAW — board full'; hc = ACCENT; }
@@ -712,7 +820,7 @@
         { t: head, c: hc, s: 30, w: 700, gap: 46 },
         { t: 'RED ' + redWins + '   —   ' + yelWins + ' YELLOW', c: TEXT, s: 16, gap: 40 },
         { t: 'Press  R  for next round', c: ACCENT, s: 16, w: 700, gap: 26 },
-        { t: 'Press  1 / 2  to change mode', c: MUTED, s: 12, gap: 22 },
+        { t: 'Press  1  vs CPU (pick level)  ·  2  hotseat', c: MUTED, s: 12, gap: 22 },
       ], false);
     }
   }
@@ -775,9 +883,24 @@
     const k = e.key;
     if (PREVENT.indexOf(k) !== -1) e.preventDefault();
 
-    // Mode select / restart is available on title and after a result.
-    if (k === '1') { startGame(1); return; }
+    // ---- Difficulty picker (vs-CPU) ----
+    // 1–4 pick a level and start; Space/Enter confirms the current default;
+    // 2-player is still reachable, and Esc/Backspace backs out to the title.
+    if (state === 'difficulty') {
+      if (k >= '1' && k <= '4') { confirmDifficulty(parseInt(k, 10) - 1); return; }
+      if (k === ' ' || k === 'Spacebar' || k === 'Enter') { confirmDifficulty(difficulty); return; }
+      if (k === 'Escape' || k === 'Backspace') { e.preventDefault(); state = 'title'; return; }
+      return;
+    }
+
+    // Mode select is available on the title and after a result.
+    //   1 -> open the difficulty picker (vs CPU)
+    //   2 -> start a 2-player hotseat game immediately
+    if (k === '1') { openDifficulty(); return; }
     if (k === '2') { startGame(2); return; }
+    // Space / Enter / click on the title opens the difficulty picker (default
+    // vs CPU) so it begins like every other arcade game; 1/2 still pick mode.
+    if (state === 'title' && (k === ' ' || k === 'Spacebar' || k === 'Enter')) { openDifficulty(); return; }
 
     if (state === 'title') return;
 
@@ -823,14 +946,48 @@
   }
 
   canvas.addEventListener('mousemove', (e) => {
+    // On the difficulty picker, hovering a button previews it as the default.
+    if (state === 'difficulty') {
+      const p = pointFromClient(e.clientX, e.clientY);
+      for (let i = 0; i < diffHit.length; i++) {
+        const b = diffHit[i];
+        if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+          difficulty = b.idx;
+          break;
+        }
+      }
+      return;
+    }
     if (!humanCanPlay()) return;
     const c = colFromClientX(e.clientX);
     if (c >= 0 && c !== cursorCol) cursorCol = c;
   });
 
+  // Convert a client point to canvas coordinates (canvas may be CSS-scaled).
+  function pointFromClient(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * (W / rect.width),
+      y: (clientY - rect.top) * (H / rect.height),
+    };
+  }
+
   canvas.addEventListener('click', (e) => {
     initAudio();
-    if (state === 'title') return;     // use 1/2 to start
+    // Title: a click opens the difficulty picker (vs CPU); 1/2 pick the mode.
+    if (state === 'title') { openDifficulty(); return; }
+    // Difficulty picker: hit-test the tappable level buttons.
+    if (state === 'difficulty') {
+      const p = pointFromClient(e.clientX, e.clientY);
+      for (let i = 0; i < diffHit.length; i++) {
+        const b = diffHit[i];
+        if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+          confirmDifficulty(b.idx);
+          return;
+        }
+      }
+      return;
+    }
     if (!humanCanPlay()) return;
     const c = colFromClientX(e.clientX);
     if (c >= 0) { cursorCol = c; startDrop(c, current); }
