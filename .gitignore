@@ -3,6 +3,7 @@ node_modules/
 dist/
 .astro/
 .cf-dist/
+.wrangler/
 
 # env (keep the example)
 .env
