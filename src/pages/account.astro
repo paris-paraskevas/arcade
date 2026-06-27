@@ -1,0 +1,84 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Account — Arcade">
+  <h2>ACCOUNT</h2>
+
+  <div id="gate" class="gate" hidden>
+    <p>Sign in to customise your account.</p>
+    <a class="btn primary" href="/sign-in/">SIGN IN</a>
+  </div>
+
+  <div id="app" hidden>
+    <p class="email" id="email"></p>
+    <form id="form" class="card">
+      <label for="username">USERNAME</label>
+      <input id="username" type="text" minlength="3" maxlength="24" autocomplete="off" spellcheck="false" />
+      <p class="hint">3–24 characters · letters, numbers, underscore. This is how friends find you.</p>
+      <button class="btn primary" type="submit">SAVE</button>
+      <p id="msg"></p>
+    </form>
+  </div>
+
+  <style>
+    .gate { max-width: 460px; border: 3px solid var(--edge); border-radius: 14px; background: var(--panel); box-shadow: var(--sh-lg); padding: 22px; }
+    .gate p { color: var(--muted); margin: 0 0 16px; }
+    .email { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+    .card { max-width: 460px; margin: 14px 0 0; display: flex; flex-direction: column; gap: 10px; border: 3px solid var(--edge); border-radius: 14px; background: var(--panel); box-shadow: var(--sh-lg); padding: 22px; }
+    label { font-family: var(--pixel); font-size: 9px; color: var(--cyan); }
+    input { font-family: var(--sans); font-size: 16px; padding: 12px 13px; border-radius: 9px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); }
+    input:focus { outline: none; border-color: var(--cyan); }
+    .hint { color: var(--muted); font-size: 13px; margin: -2px 0 4px; }
+    .btn { font-family: var(--pixel); font-size: 9px; padding: 14px 14px; border-radius: 9px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); cursor: pointer; box-shadow: var(--sh); transition: transform .08s, box-shadow .08s; text-decoration: none; align-self: flex-start; }
+    .btn.primary { background: var(--gold); color: var(--edge); }
+    .btn:hover { transform: translate(-1px,-1px); box-shadow: var(--sh-lg); }
+    .btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--edge); }
+    #msg { min-height: 20px; font-size: 14px; margin: 4px 0 0; color: var(--muted); }
+  </style>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+    const gate = document.getElementById('gate') as HTMLElement;
+    const app = document.getElementById('app') as HTMLElement;
+    const emailEl = document.getElementById('email') as HTMLElement;
+    const input = document.getElementById('username') as HTMLInputElement;
+    const msg = document.getElementById('msg') as HTMLElement;
+    let myId: string | null = null;
+    let current = '';
+    const VALID = /^[A-Za-z0-9_]{3,24}$/;
+
+    function setMsg(t: string, kind: 'err' | 'ok' | 'info' = 'info') {
+      msg.textContent = t;
+      msg.style.color = kind === 'err' ? 'var(--hot)' : kind === 'ok' ? 'var(--cyan)' : 'var(--muted)';
+    }
+
+    async function save() {
+      const name = input.value.trim();
+      if (!name || name === current) { setMsg('That’s already your username.'); return; }
+      if (!VALID.test(name)) { setMsg('3–24 chars: letters, numbers, underscore only.', 'err'); return; }
+      setMsg('Saving…');
+      const { error } = await supabase.from('profile').update({ username: name }).eq('id', myId);
+      if (error) {
+        if (error.code === '23505') setMsg(`"${name}" is taken — try another.`, 'err');
+        else setMsg(error.message, 'err');
+        return;
+      }
+      current = name;
+      setMsg(`Saved — you’re now ${name}.`, 'ok');
+    }
+
+    document.getElementById('form')!.addEventListener('submit', (e) => { e.preventDefault(); save(); });
+
+    // Standalone getSession at load is safe (not inside an onAuthStateChange callback).
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { gate.hidden = false; return; }
+      myId = session.user.id;
+      emailEl.textContent = session.user.email ?? '';
+      app.hidden = false;
+      const { data } = await supabase.from('profile').select('username').eq('id', myId).maybeSingle();
+      current = data?.username ?? '';
+      input.value = current;
+    })();
+  </script>
+</Base>
