@@ -17,8 +17,8 @@
   const slug = parts.filter((p) => p.indexOf('.') === -1).pop() || '';
 
   // ---- key dispatch -------------------------------------------------------
-  const CODE2KEY = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Space: ' ', Enter: 'Enter', KeyU: 'u', KeyR: 'r', KeyZ: 'z', KeyX: 'x' };
-  const KEYCODE = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Space: 32, Enter: 13, KeyU: 85, KeyR: 82, KeyZ: 90, KeyX: 88 };
+  const CODE2KEY = { ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Space: ' ', Enter: 'Enter', KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyU: 'u', KeyR: 'r', KeyZ: 'z', KeyX: 'x' };
+  const KEYCODE = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Space: 32, Enter: 13, KeyW: 87, KeyA: 65, KeyS: 83, KeyD: 68, KeyU: 85, KeyR: 82, KeyZ: 90, KeyX: 88 };
   function key(type, code) {
     const init = { key: CODE2KEY[code] || code, code, keyCode: KEYCODE[code] || 0, which: KEYCODE[code] || 0, bubbles: true, cancelable: true };
     try { document.dispatchEvent(new KeyboardEvent(type, init)); } catch (e) {}
@@ -32,6 +32,9 @@
   // left/right: button clusters; each {l: label, c: code}
   const DPAD = [{ l: '◀', c: 'ArrowLeft' }, { l: '▶', c: 'ArrowRight' }, { l: '▲', c: 'ArrowUp' }, { l: '▼', c: 'ArrowDown' }];
   const LR = [{ l: '◀', c: 'ArrowLeft' }, { l: '▶', c: 'ArrowRight' }];
+  // 2-player on one phone: P1 drives WASD (left cluster), P2 the arrows (right).
+  const P1PAD = [{ l: '▲', c: 'KeyW' }, { l: '◀', c: 'KeyA' }, { l: '▼', c: 'KeyS' }, { l: '▶', c: 'KeyD' }];
+  const P2PAD = [{ l: '▲', c: 'ArrowUp' }, { l: '◀', c: 'ArrowLeft' }, { l: '▼', c: 'ArrowDown' }, { l: '▶', c: 'ArrowRight' }];
   const REG = {
     // one-button (tap/hold the playfield)
     flappy: { start: 'Space', canvas: 'press', code: 'Space' },
@@ -49,7 +52,7 @@
     asteroids: { start: 'Enter', left: [{ l: '↺', c: 'ArrowLeft' }, { l: '↻', c: 'ArrowRight' }], right: [{ l: 'THR', c: 'ArrowUp' }, { l: 'FIRE', c: 'Space' }] },
     tetris: { start: 'Enter', left: [{ l: '◀', c: 'ArrowLeft' }, { l: '▶', c: 'ArrowRight' }, { l: '▼', c: 'ArrowDown' }], right: [{ l: '⟳', c: 'ArrowUp' }, { l: 'DROP', c: 'Space' }] },
     artillery: { start: 'Space', left: [{ l: '◀', c: 'ArrowLeft' }, { l: '▶', c: 'ArrowRight' }], right: [{ l: 'PWR+', c: 'ArrowUp' }, { l: 'PWR-', c: 'ArrowDown' }, { l: 'FIRE', c: 'Space' }] },
-    pong: { start: 'Space', right: [{ l: '▲', c: 'ArrowUp' }, { l: '▼', c: 'ArrowDown' }] },
+    pong: { start: 'Space', left: [{ l: '▲', c: 'KeyW' }, { l: '▼', c: 'KeyS' }], right: [{ l: '▲', c: 'ArrowUp' }, { l: '▼', c: 'ArrowDown' }] },
     // pointer/tap (mouse-driven games; tap & drag bridge to mouse)
     breakout: { start: 'Space', canvas: 'drag' },
     minesweeper: { start: 'Space', canvas: 'drag' },
@@ -63,10 +66,10 @@
     'match-three': { start: 'Space', canvas: 'drag' },
     'bubble-shooter': { start: 'Space', canvas: 'drag' },
     'missile-command': { start: 'Space', canvas: 'drag' },
-    // 2-player on one phone is awkward — Phase 2. For now: start + tap.
-    tron: { start: 'Space', twoPlayer: true },
-    'snake-duel': { start: 'Space', twoPlayer: true },
-    'air-hockey': { start: 'Space', twoPlayer: true },
+    // 2-player on one phone (Phase 2): P1 = left WASD cluster, P2 = right arrows.
+    tron: { start: 'Space', twoPlayer: true, left: P1PAD, right: P2PAD },
+    'snake-duel': { start: 'Space', twoPlayer: true, left: P1PAD, right: P2PAD },
+    'air-hockey': { start: 'Space', twoPlayer: true, left: P1PAD, right: P2PAD },
   };
   const cfg = REG[slug] || { start: 'Space', canvas: 'drag' };
 
@@ -159,7 +162,7 @@
     if (cfg.twoPlayer) {
       const h = document.createElement('div');
       h.className = 'at-hint';
-      h.textContent = '2-player — best on a keyboard for now';
+      h.textContent = 'P1 ◀ left · right ▶ P2';
       document.body.appendChild(h);
     }
 
