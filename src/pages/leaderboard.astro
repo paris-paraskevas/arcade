@@ -4,6 +4,7 @@ import { GAMES } from '../lib/games';
 const playable = GAMES.filter((g) => g.status === 'playable');
 ---
 <Base title="High scores — Arcade">
+  <script is:inline src="/arcade-metrics.js"></script>
   <h2>HIGH SCORES</h2>
   <label class="pick">GAME
     <select id="game">
@@ -34,9 +35,23 @@ const playable = GAMES.filter((g) => g.status === 'playable');
 
   <script>
     import { supabase } from '../lib/supabase';
+    const BASE = 1000000000; // must match arcade-client.js encode base
     const sel = document.getElementById('game') as HTMLSelectElement;
     const tbody = document.querySelector('#board tbody') as HTMLElement;
     const msg = document.getElementById('msg') as HTMLElement;
+    // Decode + format a stored "best" for display, per the game's metric.
+    // Lower-is-better games store BASE - value, so we invert before formatting.
+    function fmtBest(game: string, best: number): string {
+      const m = ((window as any).ARCADE_METRICS || {})[game] || { dir: 'hi', unit: 'pts' };
+      const v = m.dir === 'lo' ? BASE - best : best;
+      if (m.unit === 'cs') {
+        const s = v / 100;
+        if (s < 60) return s.toFixed(2) + 's';
+        return Math.floor(s / 60) + ':' + (s % 60).toFixed(2).padStart(5, '0');
+      }
+      if (m.unit === 'moves') return v.toLocaleString() + ' mv';
+      return v.toLocaleString();
+    }
     async function load() {
       const game = sel.value;
       tbody.innerHTML = '';
@@ -47,7 +62,7 @@ const playable = GAMES.filter((g) => g.status === 'playable');
       msg.textContent = '';
       data.forEach((r: any, i: number) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i + 1}</td><td>${r.username ?? '—'}</td><td>${r.best}</td><td>${r.plays}</td>`;
+        tr.innerHTML = `<td>${i + 1}</td><td>${r.username ?? '—'}</td><td>${fmtBest(game, r.best)}</td><td>${r.plays}</td>`;
         tbody.appendChild(tr);
       });
     }
