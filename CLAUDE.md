@@ -12,7 +12,8 @@ Read this whole file at the start of every session, then `IDEAS.md` (what we're 
 ## Read these before doing anything
 
 1. This file — operating manual + working agreement.
-2. `IDEAS.md` — Now / Next / Inbox ledger; what we're building.
+2. **`docs/HANDOFF.md`** — running session handoff: what's live, infra ledger, landmines, what to pick up next. Read at every session start.
+3. `IDEAS.md` — Now / Next / Inbox ledger; what we're building.
 3. `knowledge/STATUS.md` — what's actually built vs in-progress vs blocked.
 4. `knowledge/DECISIONS.md` — the architecture decisions + why (so we don't relitigate them).
 5. `_spec/HOUSE_RULES.md` — the build spec EVERY game must follow.

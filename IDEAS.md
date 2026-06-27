@@ -23,7 +23,7 @@ Architecture is **decided** (2026-06-26): Astro on Cloudflare · Supabase auth +
 1. **Friends graph.** Requests → accept/decline, friends list, shareable invite links (mimic Paddock's `friendship` + invite pattern; `navigator.share` on mobile).
 2. **Online 2-player via Durable Objects.** One authoritative match-room DO per game over WebSockets. Turn-based first (Connect Four, Tic-Tac-Toe), then action (Pong, Air Hockey, Tron, Snake Duel, Artillery). Reconnect + room codes; server owns state.
 3. **Matchmaking, lobbies & presence.** Invite-a-friend-to-play, quick-match queue, "who's online", join-by-code.
-4. **Wave 2 games → 30.** The remaining 12: Frogger, Missile Command, Doodle Jump, Tron ★, Helicopter, Sokoban, 15-Puzzle, Match-3, Bubble Shooter, Air Hockey ★, Artillery ★, Stack Tower. Resume once the shell is solid.
+4. **Wave 2 games → 30.** ✅ DONE (2026-06-26) — all 12 built + deployed (Frogger, Missile Command, Doodle Jump, Tron ★, Helicopter, Sokoban, 15-Puzzle, Match-3, Bubble Shooter, Air Hockey ★, Artillery ★, Stack Tower). Arcade is at **30 games**. Next on games: per-game score submission to Supabase + a deeper challenge/balance playtest.
 5. **Public profiles + stats.** Per-user page: games played, personal bests, badges, friends, recent matches.
 
 ## Inbox (unfiltered, append-only)
