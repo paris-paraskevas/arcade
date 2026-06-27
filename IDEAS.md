@@ -49,7 +49,7 @@ Architecture is **decided** (2026-06-26): Astro on Cloudflare · Supabase auth +
 - AGENTS.md / CONTRIBUTING.md / ONBOARDING.md once the repo has collaborators.
 - Friend leagues / private leaderboards (mimic Paddock leagues).
 - Global sound/music settings — master mute, per-game volume.
-- Username editor — let players set a display username (default is `player_<hex>`); needed so friend-by-name is usable and fixes the long-username overflow in the mobile header.
+- Username editor — let players set a display username (default is `player_<hex>`); needed so friend-by-name is usable and fixes the long-username overflow in the mobile header. — ✅ shipped 2026-06-27 (`/account` editor + fun `Character#NNNN` defaults).
 - Friends-only leaderboards + daily/weekly/all-time windows (the boards are global all-time only today).
 - The long-term solo **Adventure** game — the north star, story-driven, likely Godot, years out (see the `arcade-journey` memory).
 

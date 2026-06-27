@@ -12,7 +12,8 @@ _Updated 2026-06-27._
 - **Auth** — client-side Supabase (sign-up/in; email confirmation disabled on hosted). **Header reflects signed-in state across reload + navigation** — fixed the supabase-js `onAuthStateChange` lock deadlock that left `getSession()` hanging (the "sign-in doesn't stick" bug). See `knowledge/DECISIONS.md` D12.
 - **Leaderboard score submission: LIVE.** `public/arcade-client.js` → `window.Arcade.submitScore(slug, value)` (classic script, raw `fetch` → PostgREST with the localStorage session token; guest/offline no-op). On all 30 game pages; **23 scorable games POST at game-over**. `public/arcade-metrics.js` is the per-game metric registry (dir hi/lo, unit pts/rounds/moves/cs); lower-is-better stored as `BASE - value` so the existing `leaderboard` view ranks all with no schema change; the board decodes + formats. 7 win-lose/2P games excluded (tic-tac-toe, connect-four, pong, air-hockey, tron, snake-duel, artillery). Verified end-to-end on the live DB (hi/pts, lo/cs, lo/moves, hi/rounds).
 - **Friends: LIVE.** `/friends` — add by username, requests (accept/decline), friends (remove), outgoing (cancel); auto-accepts a reverse-pending request. On the `friendship` table + RLS. Verified across two accounts.
-- **Supabase** — local + hosted (`drkqjfcejhffwpbptzmv`, eu-west-1) with 4 RLS-first migrations. Leaderboard reads the `leaderboard` view.
+- **Account customization: LIVE.** `/account` username editor (3–24, unique; taken/invalid handled), reached from the header name. New signups get a game-character handle like `MsPacman#5234` — migration `20260627140000` relaxes the charset to allow `#` and replaces `handle_new_user()` (curated list + 4-digit tag + collision retry + `player_` fallback). Verified live (new signup `Kratos#7287`; editor save/persist/taken-error).
+- **Supabase** — local + hosted (`drkqjfcejhffwpbptzmv`, eu-west-1) with 5 RLS-first migrations. Leaderboard reads the `leaderboard` view.
 - **Mobile — Phase 0 (layout) + Phase 1 (touch) + Phase 2 (2-player on one phone): LIVE.** `public/arcade-fit.js` (canvas fit) + `public/game.css` + `public/arcade-touch.js` (slug→scheme registry → synthetic key/mouse) on all 30 pages. Phase 2: tron/snake-duel/air-hockey get split P1(WASD)/P2(arrows) dpads, pong both paddles. `?touch=1` forces the overlay on desktop.
 - **vs-CPU difficulty: LIVE.** tic-tac-toe, connect-four, pong, air-hockey: Easy/Medium/Hard/**Unbeatable** (default Medium).
 - **Visual redesign: LIVE.** Neobrutalist arcade shell (marquee, INSERT COIN, cartridge cards, Press Start 2P + Space Grotesk). Files: `src/layouts/Base.astro`, `src/pages/{index,leaderboard,sign-in,friends}.astro`.
@@ -21,7 +22,7 @@ _Updated 2026-06-27._
 ## In progress / next
 
 - **Push + deploy** `feat/platform-v2` and verify on the Cloudflare URL (live still = baseline).
-- **Username editor** — set a friendly name (profile update RLS exists; no UI); also fixes mobile-header username overflow.
+- **Google OAuth** — user asked for Google sign-in; needs a Google Cloud OAuth client + Supabase provider/redirect config (external deps). Code can be scaffolded; can't go live without the user's setup.
 - **Anti-cheat** — scores are client-trusted (RLS insert-own + `>=0`); add server-authoritative validation / bounds / rate limits. Then clean the `claude-qa*@example.com` test rows on hosted.
 - **Online 2-player** — Durable Objects realtime Worker (not started). Turn-based first.
 
@@ -34,6 +35,6 @@ _Updated 2026-06-27._
 
 - lights-out leaderboard = fewest moves on any single solved puzzle (a bit luck-driven); consider levels-cleared.
 - air-hockey 2-player touch uses button dpads (a per-half drag would feel better; needs game-side multitouch).
-- Long auto-username (`player_xxxxxxxxxx`) overflows the header on ~390px-wide screens (fixed by a username editor).
+- Defaults are now `Character#NNNN` (shorter than `player_xxx`) and renamable via /account; a very long custom username could still tighten the ~390px header.
 - `snake-duel` instant-draws with zero input — add a countdown in a polish pass.
 - Deeper per-game challenge/balance tuning is still a pending pass (separate from "does it start").
