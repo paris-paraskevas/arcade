@@ -74,24 +74,34 @@ const { title = 'Arcade' } = Astro.props;
   <script>
     import { supabase } from '../lib/supabase';
     const el = document.getElementById('authState');
-    async function render() {
-      if (!el) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        let name = session.user.email ?? 'player';
-        const { data } = await supabase.from('profile').select('username').eq('id', session.user.id).maybeSingle();
-        if (data?.username) name = data.username;
-        el.textContent = '';
-        const who = document.createElement('span'); who.className = 'who'; who.textContent = name;
-        const btn = document.createElement('a'); btn.className = 'nav-btn'; btn.href = '#'; btn.textContent = 'SIGN OUT';
-        btn.onclick = async (e) => { e.preventDefault(); await supabase.auth.signOut(); location.reload(); };
-        el.append(who, btn);
-      } else {
-        el.innerHTML = '<a class="nav-btn" href="/sign-in/">SIGN IN</a>';
-      }
+
+    function showSignedOut() {
+      if (el) el.innerHTML = '<a class="nav-btn" href="/sign-in/">SIGN IN</a>';
     }
-    render();
-    supabase.auth.onAuthStateChange(() => render());
+    function showSignedIn(name: string) {
+      if (!el) return;
+      el.textContent = '';
+      const who = document.createElement('span'); who.className = 'who'; who.textContent = name;
+      const btn = document.createElement('a'); btn.className = 'nav-btn'; btn.href = '#'; btn.textContent = 'SIGN OUT';
+      btn.onclick = async (e) => { e.preventDefault(); await supabase.auth.signOut(); location.reload(); };
+      el.append(who, btn);
+    }
+
+    // onAuthStateChange emits INITIAL_SESSION on subscribe and on every later change,
+    // so it drives the initial paint too. CRITICAL: this callback runs while supabase-js
+    // holds its auth lock, so awaiting any supabase call here deadlocks (getSession would
+    // hang forever — the bug this replaced). Paint synchronously from `session`, then
+    // enrich with the profile username via setTimeout(0), which runs after the lock frees.
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) { showSignedOut(); return; }
+      showSignedIn(session.user.email ?? 'player');
+      setTimeout(async () => {
+        try {
+          const { data } = await supabase.from('profile').select('username').eq('id', session.user.id).maybeSingle();
+          if (data?.username) showSignedIn(data.username);
+        } catch { /* keep the email fallback */ }
+      }, 0);
+    });
   </script>
 </body>
 </html>
