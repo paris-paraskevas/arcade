@@ -279,6 +279,7 @@
     flash = 0.95;
     sndCrash();
     if (score > best) { best = score; saveBest(best); }
+    if (window.Arcade) Arcade.submitScore('helicopter', score);  // raw distance survived (m)
     // Burst of fiery debris from the chopper.
     for (let i = 0; i < 30; i++) {
       const a = Math.random() * Math.PI * 2;

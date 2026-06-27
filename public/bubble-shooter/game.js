@@ -531,6 +531,7 @@
     sndLose();
     shake = 18;
     state = STATE.OVER;
+    if (window.Arcade) Arcade.submitScore('bubble-shooter', score); // final score to leaderboard
   }
 
   function startNextLevel() {

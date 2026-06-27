@@ -225,6 +225,7 @@
     flash = 0.9;
     sndCrash();
     if (score > best) { best = score; saveBest(best); }
+    if (window.Arcade) Arcade.submitScore('flappy', score); // leaderboard (pipes passed)
     // Burst of debris from the bird.
     for (let i = 0; i < 22; i++) {
       const a = Math.random() * Math.PI * 2;

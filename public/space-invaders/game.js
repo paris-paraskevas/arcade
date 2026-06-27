@@ -658,6 +658,7 @@
     addShake(16);
     flashTimer = 0.2;
     if (score > best) { best = score; saveBest(best); }
+    if (window.Arcade) Arcade.submitScore('space-invaders', score); // leaderboard
   }
 
   // ============================================================

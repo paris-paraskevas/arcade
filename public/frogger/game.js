@@ -554,6 +554,7 @@
     if (frog.deathTimer <= 0) {
       if (lives <= 0) {
         state = 'dead';
+        if (window.Arcade) Arcade.submitScore('frogger', score); // final score to leaderboard
       } else {
         placeFrogAtStart();
       }

@@ -388,6 +388,7 @@
   function endGame() {
     state = 'over';
     if (score > best) { best = score; saveBest(best); }
+    if (window.Arcade) Arcade.submitScore('whack-a-mole', score); // final points when the clock runs out
     // Send any still-up moles back down for a tidy game-over board.
     for (const h of holes) {
       if (h.phase === 'rising' || h.phase === 'up') { h.phase = 'falling'; h.t = 0; }

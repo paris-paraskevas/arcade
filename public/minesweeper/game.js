@@ -216,6 +216,7 @@
       flagCount = MINES;
       if (best === 0 || elapsed < best) { best = elapsed; saveBest(); }
       winJingle();
+      if (window.Arcade) Arcade.submitScore('minesweeper', Math.round(elapsed * 100)); // time in cs; lower is better
     }
   }
 

@@ -204,6 +204,7 @@
     const t = Math.ceil(elapsed);
     if (bestTime === 0 || t < bestTime) { bestTime = t; improved = true; }
     if (improved) saveBest();
+    if (window.Arcade) Arcade.submitScore('fifteen-puzzle', moves); // fewest moves wins (dir=lo)
     spawnConfetti();
     // little ascending win chime
     blip(523, 0.12, 'triangle', 0.12);

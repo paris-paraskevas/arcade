@@ -273,6 +273,7 @@
       best = { moves, time: Math.round(elapsed * 10) / 10 };
       saveBest(best);
     }
+    if (window.Arcade) Arcade.submitScore('memory', moves); // fewest moves wins (dir=lo)
   }
 
   // Click / tap.

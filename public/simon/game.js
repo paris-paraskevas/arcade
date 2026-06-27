@@ -198,6 +198,7 @@
         saveBest(state.best);
       }
       // We also track the round actually reached as the score; keep `round`.
+      if (window.Arcade) Arcade.submitScore('simon', state.round); // round reached
       return;
     }
 

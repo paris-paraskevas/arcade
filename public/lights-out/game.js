@@ -182,6 +182,7 @@
     state = 'won';
     winTimer = 0;
     if (best == null || moves < best) { best = moves; saveBest(best); }
+    if (window.Arcade) Arcade.submitScore('lights-out', moves); // moves to clear the puzzle
     spawnConfetti();
     sndWin();
   }

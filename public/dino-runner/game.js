@@ -254,6 +254,7 @@
     sfxDeath();
     const s = Math.floor(state.score);
     if (s > state.best) { state.best = s; saveBest(s); }
+    if (window.Arcade) Arcade.submitScore('dino-runner', Math.round(state.score)); // final distance/points survived
   }
 
   // ---- Spawning -----------------------------------------------

@@ -387,6 +387,7 @@
       deathFlash = 1;
       sfxDie();
       if (score > best) { best = score; saveBest(best); }
+      if (window.Arcade) Arcade.submitScore('doodle-jump', score); // final height reached
     }
   }
 

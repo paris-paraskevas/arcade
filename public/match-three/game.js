@@ -225,6 +225,7 @@
     phase = 'idle';
     sel = null;
     if (score > best) { best = score; saveBest(); }
+    if (window.Arcade) Arcade.submitScore('match-three', score); // final score to leaderboard
     sfxGameOver();
   }
 

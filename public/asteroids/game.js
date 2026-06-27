@@ -481,6 +481,7 @@
     burst(ship.x, ship.y, 14, 120, 0.9, '#ffb15a');
 
     if (lives <= 0) {
+      if (window.Arcade) Arcade.submitScore('asteroids', score); // leaderboard
       // Let the explosion play, then go to game over.
       setTimeout(() => { if (state === STATE.PLAY) state = STATE.OVER; }, 900);
     } else {

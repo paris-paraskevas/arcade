@@ -446,6 +446,7 @@
     sndLose();
     if (lives <= 0) {
       if (score > best) { best = score; saveBest(best); }
+      if (window.Arcade) Arcade.submitScore('breakout', score); // leaderboard: final points
       state = STATE.GAMEOVER;
     } else {
       resetBall();

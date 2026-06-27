@@ -619,6 +619,7 @@
     if (gameState === STATE.GAMEOVER) return;
     Sound.alarmOff();
     if (score > best) { best = score; saveBest(best); }
+    if (window.Arcade) Arcade.submitScore('missile-command', score);  // raw points
     gameState = STATE.GAMEOVER;
   }
 

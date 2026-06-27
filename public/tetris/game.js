@@ -200,6 +200,7 @@
   function gameOver() {
     state = 'over';
     if (score > best) { best = score; saveBest(); }
+    if (window.Arcade) Arcade.submitScore('tetris', score); // leaderboard: final points
     blip(140, 0.25, 'sawtooth', 0.18);
   }
 

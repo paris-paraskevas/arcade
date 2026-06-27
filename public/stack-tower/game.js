@@ -235,6 +235,7 @@
   function endGame() {
     state = 'over';
     sndOver();
+    if (window.Arcade) Arcade.submitScore('stack-tower', score);  // raw blocks stacked (height)
   }
 
   // ---- Input --------------------------------------------------------------

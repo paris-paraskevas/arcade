@@ -182,6 +182,7 @@
     state = 'dead';
     deathFlash = 1;       // start the red flash (fades in draw())
     sndDie();
+    if (window.Arcade) Arcade.submitScore('snake', score); // leaderboard (no-op for guests)
   }
 
   // ---- Drawing helpers ----------------------------------------

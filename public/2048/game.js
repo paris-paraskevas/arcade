@@ -285,6 +285,7 @@
   function gameOver() {
     state = 'over';
     if (score > best) { best = score; saveBest(); }
+    if (window.Arcade) Arcade.submitScore('2048', score); // leaderboard: final points
     blip(160, 0.3, 'sawtooth', 0.16);
   }
 

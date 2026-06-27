@@ -195,6 +195,7 @@
       state.best = result;
       localStorage.setItem('weekendRacerBest', String(result));
     }
+    if (window.Arcade) Arcade.submitScore('weekend-racer', result); // distance/points racer (dir=hi)
   }
 
   // ---- Input --------------------------------------------------

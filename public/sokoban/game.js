@@ -365,6 +365,7 @@
     if (level === LEVELS.length - 1) {
       // Last level cleared — record best total moves for the run.
       if (best == null || runMoves < best) { best = runMoves; saveBest(best); }
+      if (window.Arcade) Arcade.submitScore('sokoban', runMoves); // total moves across all levels (full run)
       sndWin();
     } else {
       sndSolve();
