@@ -1,0 +1,165 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Friends — Arcade">
+  <h2>FRIENDS</h2>
+
+  <div id="gate" class="gate" hidden>
+    <p>Sign in to add friends and follow their high scores.</p>
+    <a class="btn primary" href="/sign-in/">SIGN IN</a>
+  </div>
+
+  <div id="app" hidden>
+    <form id="addForm" class="add">
+      <input id="who" type="text" placeholder="add a player by username" autocomplete="off" spellcheck="false" />
+      <button class="btn primary" type="submit">ADD</button>
+    </form>
+    <p id="msg"></p>
+
+    <section><h3>Requests</h3><ul id="requests" class="list"></ul></section>
+    <section><h3>Friends</h3><ul id="friends" class="list"></ul></section>
+    <section><h3>Sent</h3><ul id="sent" class="list"></ul></section>
+  </div>
+
+  <style>
+    .gate { max-width: 460px; border: 3px solid var(--edge); border-radius: 14px; background: var(--panel); box-shadow: var(--sh-lg); padding: 22px; }
+    .gate p { color: var(--muted); margin: 0 0 16px; }
+    .btn { font-family: var(--pixel); font-size: 9px; padding: 13px 14px; border-radius: 9px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); cursor: pointer; box-shadow: var(--sh); transition: transform .08s, box-shadow .08s; text-decoration: none; display: inline-block; }
+    .btn.primary { background: var(--gold); color: var(--edge); }
+    .btn:hover { transform: translate(-1px,-1px); box-shadow: var(--sh-lg); }
+    .btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--edge); }
+    .add { display: flex; gap: 10px; max-width: 520px; margin: 18px 0 6px; }
+    .add input { flex: 1; font-family: var(--sans); font-size: 16px; padding: 12px 13px; border-radius: 9px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); }
+    .add input:focus { outline: none; border-color: var(--cyan); }
+    #msg { min-height: 20px; font-size: 14px; color: var(--muted); margin: 6px 0 8px; }
+    section { max-width: 520px; margin-top: 22px; }
+    section h3 { font-family: var(--pixel); font-size: 10px; color: var(--cyan); text-transform: uppercase; margin: 0 0 10px; }
+    .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 2px solid var(--edge); border-radius: 10px; background: var(--panel); box-shadow: var(--sh); padding: 11px 13px; }
+    .list li.empty { color: var(--muted); justify-content: flex-start; box-shadow: none; background: transparent; border-style: dashed; }
+    .name { font-weight: 700; font-size: 15px; }
+    .acts { display: flex; gap: 7px; }
+    .mini { font-family: var(--pixel); font-size: 8px; padding: 8px 9px; border-radius: 7px; border: 2px solid var(--edge); cursor: pointer; box-shadow: var(--sh); color: var(--ink); background: var(--panel2); }
+    .mini:hover { transform: translate(-1px,-1px); }
+    .mini.ok { background: var(--cyan); color: var(--edge); }
+    .mini.no { background: var(--hot); color: var(--edge); }
+  </style>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+    const gate = document.getElementById('gate') as HTMLElement;
+    const app = document.getElementById('app') as HTMLElement;
+    const msg = document.getElementById('msg') as HTMLElement;
+    const who = document.getElementById('who') as HTMLInputElement;
+    const reqUl = document.getElementById('requests') as HTMLElement;
+    const friUl = document.getElementById('friends') as HTMLElement;
+    const sentUl = document.getElementById('sent') as HTMLElement;
+    let myId: string | null = null;
+
+    function setMsg(t: string, kind: 'err' | 'ok' | 'info' = 'info') {
+      msg.textContent = t;
+      msg.style.color = kind === 'err' ? 'var(--hot)' : kind === 'ok' ? 'var(--cyan)' : 'var(--muted)';
+    }
+
+    // Resolve a set of user ids to usernames in one query (profile is public-read).
+    async function usernames(ids: string[]) {
+      const map = new Map<string, string>();
+      if (!ids.length) return map;
+      const { data } = await supabase.from('profile').select('id,username').in('id', ids);
+      (data || []).forEach((p: any) => map.set(p.id, p.username));
+      return map;
+    }
+
+    function li(name: string, actions: { label: string; cls: string; on: () => void }[]) {
+      const el = document.createElement('li');
+      const n = document.createElement('span'); n.className = 'name'; n.textContent = name;
+      const box = document.createElement('span'); box.className = 'acts';
+      actions.forEach((a) => {
+        const b = document.createElement('button'); b.className = 'mini ' + a.cls; b.textContent = a.label;
+        b.addEventListener('click', a.on); box.appendChild(b);
+      });
+      el.append(n, box);
+      return el;
+    }
+
+    function empty(ul: HTMLElement, text: string) {
+      const el = document.createElement('li'); el.className = 'empty'; el.textContent = text; ul.appendChild(el);
+    }
+
+    async function refresh() {
+      const [{ data: incoming }, { data: accepted }, { data: outgoing }] = await Promise.all([
+        supabase.from('friendship').select('id,requester').eq('addressee', myId).eq('status', 'pending'),
+        supabase.from('friendship').select('id,requester,addressee').eq('status', 'accepted').or(`requester.eq.${myId},addressee.eq.${myId}`),
+        supabase.from('friendship').select('id,addressee').eq('requester', myId).eq('status', 'pending'),
+      ]);
+
+      const ids = new Set<string>();
+      (incoming || []).forEach((r: any) => ids.add(r.requester));
+      (accepted || []).forEach((r: any) => ids.add(r.requester === myId ? r.addressee : r.requester));
+      (outgoing || []).forEach((r: any) => ids.add(r.addressee));
+      const names = await usernames([...ids]);
+      const nm = (id: string) => names.get(id) || '—';
+
+      reqUl.innerHTML = ''; friUl.innerHTML = ''; sentUl.innerHTML = '';
+
+      (incoming || []).forEach((r: any) => reqUl.appendChild(li(nm(r.requester), [
+        { label: 'ACCEPT', cls: 'ok', on: async () => { await supabase.from('friendship').update({ status: 'accepted' }).eq('id', r.id); refresh(); } },
+        { label: 'DECLINE', cls: 'no', on: async () => { await supabase.from('friendship').delete().eq('id', r.id); refresh(); } },
+      ])));
+      if (!(incoming || []).length) empty(reqUl, 'No pending requests.');
+
+      (accepted || []).forEach((r: any) => {
+        const other = r.requester === myId ? r.addressee : r.requester;
+        friUl.appendChild(li(nm(other), [
+          { label: 'REMOVE', cls: 'no', on: async () => { await supabase.from('friendship').delete().eq('id', r.id); refresh(); } },
+        ]));
+      });
+      if (!(accepted || []).length) empty(friUl, 'No friends yet — add someone above.');
+
+      (outgoing || []).forEach((r: any) => sentUl.appendChild(li(nm(r.addressee), [
+        { label: 'CANCEL', cls: 'no', on: async () => { await supabase.from('friendship').delete().eq('id', r.id); refresh(); } },
+      ])));
+      if (!(outgoing || []).length) empty(sentUl, 'No outgoing requests.');
+    }
+
+    async function add(raw: string) {
+      const name = raw.trim();
+      if (!name) return;
+      setMsg('Searching…');
+      // Exact (case-sensitive) username match. profile is public-read.
+      const { data: prof, error } = await supabase.from('profile').select('id,username').eq('username', name).maybeSingle();
+      if (error) { setMsg(error.message, 'err'); return; }
+      if (!prof) { setMsg(`No player called "${name}".`, 'err'); return; }
+      if (prof.id === myId) { setMsg("That's you!", 'err'); return; }
+
+      // Is there already a relationship either direction?
+      const { data: rel } = await supabase.from('friendship')
+        .select('id,requester,addressee,status')
+        .or(`and(requester.eq.${myId},addressee.eq.${prof.id}),and(requester.eq.${prof.id},addressee.eq.${myId})`);
+      const ex = (rel || [])[0];
+      if (ex) {
+        if (ex.status === 'accepted') { setMsg(`Already friends with ${prof.username}.`); return; }
+        if (ex.requester === prof.id && ex.status === 'pending') {
+          await supabase.from('friendship').update({ status: 'accepted' }).eq('id', ex.id);
+          setMsg(`Accepted ${prof.username}'s request!`, 'ok'); who.value = ''; refresh(); return;
+        }
+        setMsg(`Request to ${prof.username} already pending.`); return;
+      }
+
+      const { error: insErr } = await supabase.from('friendship').insert({ requester: myId, addressee: prof.id });
+      if (insErr) { setMsg(insErr.message, 'err'); return; }
+      setMsg(`Request sent to ${prof.username}.`, 'ok'); who.value = ''; refresh();
+    }
+
+    document.getElementById('addForm')!.addEventListener('submit', (e) => { e.preventDefault(); add(who.value); });
+
+    // Standalone getSession at load is safe (not inside an onAuthStateChange callback).
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { gate.hidden = false; return; }
+      myId = session.user.id;
+      app.hidden = false;
+      refresh();
+    })();
+  </script>
+</Base>
