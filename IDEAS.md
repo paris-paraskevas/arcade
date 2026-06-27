@@ -16,11 +16,11 @@ Architecture is **decided** (2026-06-26): Astro on Cloudflare · Supabase auth +
 
 1. **Platform foundation — Astro on Cloudflare + Supabase.** Scaffold the Astro app, wire Cloudflare Pages/Workers + `wrangler`, link a Supabase project, and migrate the 18 static games in as static assets behind the existing shelf — nothing currently working breaks. _Decided 2026-06-26; scaffolding is gated on your green-light + provisioning (CF account, Supabase keys)._
 2. **Auth + accounts.** Supabase Auth (magic-link email + OAuth), a `profile` table (username, avatar, created_at), session handling, Row-Level Security. Sign-in/up/account UI as Astro islands. Guests can still play; prompt to save scores.
-3. **Scores + single-player leaderboards.** Server-validated score submission (never trust the client), per-game personal bests, and leaderboards: global + friends-only + daily / weekly / all-time windows.
+3. **Scores + single-player leaderboards.** Server-validated score submission (never trust the client), per-game personal bests, and leaderboards: global + friends-only + daily / weekly / all-time windows. — ✅ submission + global per-game board DONE (2026-06-27): 23 games POST at game-over via `arcade-client.js`; lower-is-better encoded; board decodes/formats. TODO: server-side validation (client-trusted today), friends-only + time-window boards, personal-best surfacing.
 
 ## Next (≤ 5, queued)
 
-1. **Friends graph.** Requests → accept/decline, friends list, shareable invite links (mimic Paddock's `friendship` + invite pattern; `navigator.share` on mobile).
+1. **Friends graph.** Requests → accept/decline, friends list, shareable invite links (mimic Paddock's `friendship` + invite pattern; `navigator.share` on mobile). — ✅ core DONE (2026-06-27): `/friends` add-by-username, requests accept/decline, friends list + remove. TODO: shareable invite links + `navigator.share`.
 2. **Online 2-player via Durable Objects.** One authoritative match-room DO per game over WebSockets. Turn-based first (Connect Four, Tic-Tac-Toe), then action (Pong, Air Hockey, Tron, Snake Duel, Artillery). Reconnect + room codes; server owns state.
 3. **Matchmaking, lobbies & presence.** Invite-a-friend-to-play, quick-match queue, "who's online", join-by-code.
 4. **Wave 2 games → 30.** ✅ DONE (2026-06-26) — all 12 built + deployed (Frogger, Missile Command, Doodle Jump, Tron ★, Helicopter, Sokoban, 15-Puzzle, Match-3, Bubble Shooter, Air Hockey ★, Artillery ★, Stack Tower). Arcade is at **30 games**. Next on games: per-game score submission to Supabase + a deeper challenge/balance playtest.
@@ -49,6 +49,8 @@ Architecture is **decided** (2026-06-26): Astro on Cloudflare · Supabase auth +
 - AGENTS.md / CONTRIBUTING.md / ONBOARDING.md once the repo has collaborators.
 - Friend leagues / private leaderboards (mimic Paddock leagues).
 - Global sound/music settings — master mute, per-game volume.
+- Username editor — let players set a display username (default is `player_<hex>`); needed so friend-by-name is usable and fixes the long-username overflow in the mobile header.
+- Friends-only leaderboards + daily/weekly/all-time windows (the boards are global all-time only today).
 - The long-term solo **Adventure** game — the north star, story-driven, likely Godot, years out (see the `arcade-journey` memory).
 
 ## Parked (might do, with a revisit trigger)
