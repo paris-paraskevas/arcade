@@ -3,29 +3,33 @@ import Base from '../layouts/Base.astro';
 import { GAMES } from '../lib/games';
 const playable = GAMES.filter((g) => g.status === 'playable');
 ---
-<Base title="Leaderboard — Arcade">
-  <h2>Leaderboards</h2>
-  <label class="pick">Game:
+<Base title="High scores — Arcade">
+  <h2>HIGH SCORES</h2>
+  <label class="pick">GAME
     <select id="game">
       {playable.map((g) => <option value={g.id}>{g.title}</option>)}
     </select>
   </label>
 
-  <table id="board">
-    <thead><tr><th>#</th><th>Player</th><th>Best</th><th>Plays</th></tr></thead>
-    <tbody></tbody>
-  </table>
+  <div class="board-wrap">
+    <table id="board">
+      <thead><tr><th>#</th><th>Player</th><th>Best</th><th>Plays</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
   <p id="msg"></p>
 
   <style>
-    .pick { display: inline-flex; align-items: center; gap: 8px; color: #9fb4d4; font-size: 14px; margin-bottom: 18px; }
-    select { font: inherit; padding: 8px 12px; border-radius: 10px; border: 1px solid #2a3550; background: #10141f; color: #eaf2ff; }
-    table { width: 100%; border-collapse: collapse; max-width: 560px; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #1d2536; }
-    th { color: #6b7890; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-    td { color: #cdd6e4; }
-    td:first-child, th:first-child { width: 40px; color: #6b7890; }
-    #msg { color: #6b7890; font-size: 14px; margin-top: 14px; }
+    .pick { display: inline-flex; align-items: center; gap: 10px; font-family: var(--pixel); font-size: 9px; color: var(--gold); margin: 18px 0; }
+    select { font-family: var(--sans); font-size: 15px; padding: 9px 12px; border-radius: 8px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); box-shadow: var(--sh); }
+    .board-wrap { border: 3px solid var(--edge); border-radius: 12px; background: var(--panel); box-shadow: var(--sh-lg); overflow: hidden; max-width: 600px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-family: var(--pixel); font-size: 8px; color: var(--cyan); text-align: left; padding: 13px 14px; border-bottom: 3px solid var(--edge); text-transform: uppercase; }
+    td { padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 15px; color: var(--ink); }
+    tbody tr:first-child td { color: var(--gold); font-weight: 700; }
+    td:first-child, th:first-child { width: 46px; color: var(--muted); }
+    #msg { color: var(--muted); font-size: 14px; margin-top: 14px; }
+    @media (max-width: 560px) { th, td { padding: 9px 9px; font-size: 13px; } .pick { font-size: 8px; } }
   </style>
 
   <script>
@@ -33,17 +37,11 @@ const playable = GAMES.filter((g) => g.status === 'playable');
     const sel = document.getElementById('game') as HTMLSelectElement;
     const tbody = document.querySelector('#board tbody') as HTMLElement;
     const msg = document.getElementById('msg') as HTMLElement;
-
     async function load() {
       const game = sel.value;
       tbody.innerHTML = '';
       msg.textContent = 'Loading…';
-      const { data, error } = await supabase
-        .from('leaderboard')
-        .select('username,best,plays')
-        .eq('game', game)
-        .order('best', { ascending: false })
-        .limit(50);
+      const { data, error } = await supabase.from('leaderboard').select('username,best,plays').eq('game', game).order('best', { ascending: false }).limit(50);
       if (error) { msg.textContent = 'Error: ' + error.message; return; }
       if (!data || !data.length) { msg.textContent = 'No scores yet — be the first!'; return; }
       msg.textContent = '';

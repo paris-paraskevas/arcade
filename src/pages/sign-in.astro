@@ -1,32 +1,33 @@
 ---
 import Base from '../layouts/Base.astro';
 ---
-<Base title="Sign in — Arcade">
+<Base title="Player login — Arcade">
   <div class="auth">
-    <h2>Sign in / Sign up</h2>
-    <p class="sub">An account saves your scores and puts you on the leaderboards.</p>
+    <h2>PLAYER LOGIN</h2>
+    <p class="sub">An account saves your scores and puts you on the high-score boards.</p>
     <form id="f">
       <input id="email" type="email" placeholder="email" autocomplete="email" required />
       <input id="password" type="password" placeholder="password (min 6 chars)" minlength="6" autocomplete="current-password" required />
       <div class="row">
-        <button id="signin" type="submit">Sign in</button>
-        <button id="signup" type="button" class="ghost">Create account</button>
+        <button id="signin" type="submit" class="btn primary">SIGN IN</button>
+        <button id="signup" type="button" class="btn">NEW PLAYER</button>
       </div>
     </form>
     <p id="msg"></p>
   </div>
 
   <style>
-    .auth { max-width: 380px; margin: 24px auto; }
-    .sub { color: #8595b0; font-size: 14px; margin-top: -4px; }
+    .auth { max-width: 400px; margin: 20px auto; border: 3px solid var(--edge); border-radius: 14px; background: var(--panel); box-shadow: var(--sh-lg); padding: 22px; }
+    .sub { color: var(--muted); font-size: 14px; margin: -2px 0 0; }
     form { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
-    input { font: inherit; padding: 11px 13px; border-radius: 10px; border: 1px solid #2a3550; background: #10141f; color: #eaf2ff; }
-    input:focus { outline: none; border-color: #5a7bff; }
+    input { font-family: var(--sans); font-size: 16px; padding: 12px 13px; border-radius: 9px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); }
+    input:focus { outline: none; border-color: var(--cyan); }
     .row { display: flex; gap: 10px; }
-    button { font: inherit; flex: 1; padding: 11px; border-radius: 10px; border: 1px solid #3a4a72; background: #2a3550; color: #fff; cursor: pointer; }
-    button.ghost { background: #141a28; color: #9fb4d4; }
-    button:hover { border-color: #5a7bff; }
-    #msg { min-height: 20px; margin-top: 14px; color: #ff9e8b; font-size: 14px; }
+    .btn { flex: 1; font-family: var(--pixel); font-size: 9px; padding: 14px 8px; border-radius: 9px; border: 2px solid var(--edge); background: var(--panel2); color: var(--ink); cursor: pointer; box-shadow: var(--sh); transition: transform .08s, box-shadow .08s; }
+    .btn.primary { background: var(--gold); color: var(--edge); }
+    .btn:hover { transform: translate(-1px,-1px); box-shadow: var(--sh-lg); }
+    .btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--edge); }
+    #msg { min-height: 20px; margin-top: 14px; color: var(--hot); font-size: 14px; }
   </style>
 
   <script>
@@ -35,16 +36,15 @@ import Base from '../layouts/Base.astro';
     const password = document.getElementById('password') as HTMLInputElement;
     const msg = document.getElementById('msg') as HTMLElement;
     const form = document.getElementById('f') as HTMLFormElement;
-
     async function go(kind: 'in' | 'up') {
-      msg.style.color = '#9fb4d4';
+      msg.style.color = 'var(--muted)';
       msg.textContent = kind === 'up' ? 'Creating account…' : 'Signing in…';
       const creds = { email: email.value, password: password.value };
       const { data, error } = kind === 'up'
         ? await supabase.auth.signUp(creds)
         : await supabase.auth.signInWithPassword(creds);
-      if (error) { msg.style.color = '#ff9e8b'; msg.textContent = error.message; return; }
-      if (!data.session) { msg.style.color = '#9fb4d4'; msg.textContent = 'Check your email to confirm, then sign in.'; return; }
+      if (error) { msg.style.color = 'var(--hot)'; msg.textContent = error.message; return; }
+      if (!data.session) { msg.style.color = 'var(--cyan)'; msg.textContent = 'Check your email to confirm, then sign in.'; return; }
       location.href = '/';
     }
     form.addEventListener('submit', (e) => { e.preventDefault(); go('in'); });

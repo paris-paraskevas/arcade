@@ -7,30 +7,66 @@ const { title = 'Arcade' } = Astro.props;
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
   <title>{title}</title>
   <style is:global>
-    :root { color-scheme: dark; }
+    :root {
+      --bg: #161229; --panel: #1e1940; --panel2: #251f52;
+      --ink: #f6f3ff; --muted: #a99fd6;
+      --edge: #08060f; --gold: #ffd23e; --hot: #ff3e7f; --cyan: #36e0e6;
+      --pixel: "Press Start 2P", monospace;
+      --sans: "Space Grotesk", system-ui, sans-serif;
+      --sh: 4px 4px 0 var(--edge); --sh-lg: 7px 7px 0 var(--edge);
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: radial-gradient(1200px 600px at 50% -10%, #182338 0%, #0b0e14 60%); color: #cdd6e4; font-family: "Segoe UI", system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh; font-family: var(--sans); color: var(--ink);
+      background-color: var(--bg);
+      background-image: radial-gradient(rgba(255,255,255,.035) 1.5px, transparent 1.6px);
+      background-size: 22px 22px;
+    }
     a { color: inherit; }
-    header.site { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid #1d2536; }
-    header.site .brand { font-weight: 800; letter-spacing: 6px; font-size: 20px; text-decoration: none; background: linear-gradient(90deg, #7aa2ff, #c98bff, #ff9e8b); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    header.site nav { display: flex; align-items: center; gap: 18px; font-size: 14px; }
-    header.site nav a { color: #9fb4d4; text-decoration: none; }
-    header.site nav a:hover { color: #eaf2ff; }
-    #authState { font-size: 13px; color: #9fb4d4; }
-    #authState button { font: inherit; font-size: 13px; background: #1b2233; color: #cdd6e4; border: 1px solid #2a3550; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
-    main { max-width: 1120px; margin: 0 auto; padding: 28px 24px 64px; }
-    h2 { color: #eaf2ff; font-weight: 700; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    header.site {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      padding: 16px 22px; border-bottom: 3px solid var(--edge); background: var(--panel);
+    }
+    .brand {
+      font-family: var(--pixel); font-size: 15px; color: var(--gold); text-decoration: none;
+      text-shadow: 2px 2px 0 var(--edge); display: inline-flex; align-items: center; gap: 9px;
+    }
+    .brand .coin { width: 15px; height: 15px; border-radius: 50%; background: var(--gold); border: 2px solid var(--edge); }
+    header.site nav { display: flex; align-items: center; gap: 10px; }
+    .nav-btn {
+      font-family: var(--pixel); font-size: 9px; text-decoration: none; color: var(--ink);
+      background: var(--panel2); border: 2px solid var(--edge); border-radius: 8px; padding: 10px 11px;
+      box-shadow: var(--sh); transition: transform .08s, box-shadow .08s;
+    }
+    .nav-btn:hover { transform: translate(-1px,-1px); box-shadow: var(--sh-lg); color: var(--gold); }
+    .nav-btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--edge); }
+    #authState { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+    #authState .who { font-weight: 700; color: var(--cyan); }
+    main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 90px; }
+    h2 { font-family: var(--pixel); font-size: 15px; color: var(--ink); text-shadow: 2px 2px 0 var(--edge); }
+    @media (max-width: 640px) {
+      header.site { flex-wrap: wrap; gap: 8px 10px; padding: 12px 14px; }
+      .brand { font-size: 12px; }
+      .nav-btn { font-size: 8px; padding: 9px 9px; }
+      main { padding: 20px 14px 90px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   </style>
 </head>
 <body>
   <header class="site">
-    <a class="brand" href="/">ARCADE</a>
+    <a class="brand" href="/"><span class="coin"></span>ARCADE</a>
     <nav>
-      <a href="/">Games</a>
-      <a href="/leaderboard/">Leaderboard</a>
-      <span id="authState"><a href="/sign-in/">Sign in</a></span>
+      <a class="nav-btn" href="/">GAMES</a>
+      <a class="nav-btn" href="/leaderboard/">SCORES</a>
+      <span id="authState"><a class="nav-btn" href="/sign-in/">SIGN IN</a></span>
     </nav>
   </header>
   <main><slot /></main>
@@ -46,14 +82,12 @@ const { title = 'Arcade' } = Astro.props;
         const { data } = await supabase.from('profile').select('username').eq('id', session.user.id).maybeSingle();
         if (data?.username) name = data.username;
         el.textContent = '';
-        const span = document.createElement('span');
-        span.textContent = name + '  ';
-        const btn = document.createElement('button');
-        btn.textContent = 'Sign out';
-        btn.onclick = async () => { await supabase.auth.signOut(); location.reload(); };
-        el.append(span, btn);
+        const who = document.createElement('span'); who.className = 'who'; who.textContent = name;
+        const btn = document.createElement('a'); btn.className = 'nav-btn'; btn.href = '#'; btn.textContent = 'SIGN OUT';
+        btn.onclick = async (e) => { e.preventDefault(); await supabase.auth.signOut(); location.reload(); };
+        el.append(who, btn);
       } else {
-        el.innerHTML = '<a href="/sign-in/">Sign in</a>';
+        el.innerHTML = '<a class="nav-btn" href="/sign-in/">SIGN IN</a>';
       }
     }
     render();
